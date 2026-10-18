@@ -31,6 +31,25 @@ class EmailService:
         except Exception as e: # Здесь можно настроить логирование ошибки отправки
             print(f"Ошибка при отправке письма на {email_to}: {e}")
 
+
+    @staticmethod
+    async def send_registration_code(email_to: str, code: str, expire_minutes: int = 10):
+        message = EmailMessage()
+        message["From"] = settings.SMTP_FROM
+        message["To"] = email_to
+        message["Subject"] = "Подтверждение почты в BookLet"
+        message.set_content(
+            f"Здравствуйте!\n\n"
+            f"Ваш код для подтверждения регистрации в BookLet: {code}\n"
+            f"Код действителен {expire_minutes} минут.\n\n"
+            f"Если вы не регистрировались, просто проигнорируйте это письмо."
+        )
+        try:
+            await EmailService._send(message)
+        except Exception as e:
+            print(f"Ошибка при отправке письма на {email_to}: {e}")
+
+
 #TODO захардкожено время токена
     @staticmethod
     async def send_reset_password_email(email_to: str, reset_link: str, expire_minutes: int = 5):

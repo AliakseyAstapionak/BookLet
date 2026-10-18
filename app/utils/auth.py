@@ -12,6 +12,11 @@ import hmac
 SEND_COOLDOWN = 60
 MAX_LOGIN_FAILS=5
 LOGIN_FAIL_WINDOW=300
+REG_COOLDOWN=60
+REG_ATTEMPTS=5
+REG_TTL=600
+MAX_REG_FAILS=5
+REG_FAIL_WINDOW=900
 
 def _hash_code(code: str) -> str:
     return hmac.new(jwtsettings.JWT_SECRET_KEY.encode(), code.encode(), hashlib.sha256).hexdigest()
@@ -34,6 +39,8 @@ async def can_send_2fa_code(user, response: Response, background_tasks: Backgrou
     return True
 
 
+
+
 async def check_login_limit(request: Request):
     key = f"login_fail:{request.client.host}"
     fails = await redis_client.get(key)
@@ -54,4 +61,31 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
     if not user or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Аккаунт неактивен')
     return data
-    
+
+
+async def can_send_registration_code(username, email, hashed_pwd, background_tasks: BackgroundTasks):
+    cd_key = f'reg_cd:{email}'
+    if not await redis_client.set(cd_key, 1, nx=True, ex=REG_COOLDOWN):
+        return False
+    code = f'{random.randint(100000, 999999)}'
+    key = f'reg_code:{email}'
+    async with redis_client.pipeline(transaction=True) as pipe:
+        pipe.hset(name=key, mapping={'username': username, 'email': email, 'hashed_pwd': hashed_pwd, "hashed_code": _hash_code(code), "attempts": REG_ATTEMPTS})
+        pipe.expire(key, REG_TTL)
+        await pipe.execute()
+    background_tasks.add_task(EmailService.send_registration_code, email_to=email, code=code)
+    return True 
+
+async def check_registration_limit(request: Request):
+    key = f"login_fail:{request.client.host}"
+    fails = await redis_client.get(key)
+    if fails and int(fails) >= MAX_REG_FAILS:
+        ttl = await redis_client.ttl(key)
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f'Слишком много попыток. Повторите через {max(ttl, 1)} сек.')
+    return key
+
+async def register_reg_fail(key: str):
+    n = await redis_client.incr(key)
+    if n == 1:
+        await redis_client.expire(key, REG_FAIL_WINDOW)
