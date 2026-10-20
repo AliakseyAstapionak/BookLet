@@ -13,6 +13,22 @@ class SortEnum(str, Enum):
     PRICE_DESC = "price_desc"
     NAME = "name"
 
+class MyAnnouncementFiltersSchema(BaseModel):
+    name: Optional[str] = None
+    type: Optional[str] = None
+    min_price: Optional[int] = None
+    max_price: Optional[int] = None
+    limit: int = Field(ge=1, le=150, default=20)
+    offset: int = Field(ge=0, default=0)
+    sort: SortEnum = SortEnum.NEWEST
+
+    @model_validator(mode='after')
+    def validate_price(self) -> 'AnnouncementFiltersSchema':
+        if self.min_price is not None and self.max_price is not None:
+            if self.min_price > self.max_price:
+                raise ValueError('Максимальная цена не может быть меньше минимальной')
+        return self
+
 class AnnouncementFiltersSchema(BaseModel):
     provider: Optional[str] = None
     name: Optional[str] = None

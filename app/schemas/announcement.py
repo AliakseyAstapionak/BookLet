@@ -1,8 +1,6 @@
-from pydantic import BaseModel, Field, field_validator
-from typing import Literal, List, Any
-from models import AnnouncementModel
-
-
+from pydantic import BaseModel, Field, field_validator, ConfigDict
+from typing import Literal
+from datetime import datetime
 class CreateAnnouncementSchema(BaseModel):
     name: str = Field(min_length=3, max_length=100, detail='Название услуги')
     status: Literal['active', 'archived', 'booked'] 
@@ -18,6 +16,18 @@ class CreateAnnouncementSchema(BaseModel):
             value = None
         return value
 
-class AnnouncementResponseSchema(BaseModel):
-    announcements: List[Any] # почему то List[AnnouncementModel] не работает
+class AnnouncementOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    user_id: int
+    name: str
+    type: str
+    description: str | None
+    price: int
+    status: str
+    created_at: datetime
+    updated_at: datetime
 
+
+class AnnouncementResponseSchema(BaseModel):
+    announcements: list[AnnouncementOut]

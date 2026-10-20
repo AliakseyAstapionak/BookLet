@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from utils import verify_password, hash_password
-from schemas import ChangePasswordSchema, CreateAnnouncementSchema, AnnouncementResponseSchema
+from schemas import (ChangePasswordSchema, CreateAnnouncementSchema, 
+                    AnnouncementResponseSchema, MyAnnouncementFiltersSchema)
 from services import UserService, AnnouncementService
 from core import get_db
 from utils import get_current_user
+from typing import Annotated
 
 
 router = APIRouter(prefix='/BookLet', tags=['Функции пользователя'])
@@ -44,11 +46,24 @@ async def create_announcement(anc: CreateAnnouncementSchema, db=Depends(get_db),
     return {'success': True, 'new_announcement': new_announcement}
 
 #TODO добавить фильтры 
-@router.post('/my_announcements', response_model=AnnouncementResponseSchema)
-async def my_anniouncemets(request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
+@router.post('/my_announcements/active', response_model=AnnouncementResponseSchema, )
+async def my_anniouncemets(filters: Annotated[MyAnnouncementFiltersSchema, Query()], request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
     user_id = current_user['uid']
-    announcements = await AnnouncementService.get_my_announcements(user_id=user_id, db=db)
+    announcements = await AnnouncementService.get_my_announcements(user_id=user_id, status='active', filters=filters,  db=db)
     return {'announcements': announcements}
+
+@router.post('/my_announcements/archived', response_model=AnnouncementResponseSchema, )
+async def my_anniouncemets(filters: Annotated[MyAnnouncementFiltersSchema, Query()], request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
+    user_id = current_user['uid']
+    announcements = await AnnouncementService.get_my_announcements(user_id=user_id, status='archived', filters=filters,  db=db)
+    return {'announcements': announcements}
+
+@router.post('/my_announcements/booked', response_model=AnnouncementResponseSchema, )
+async def my_anniouncemets(filters: Annotated[MyAnnouncementFiltersSchema, Query()], request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
+    user_id = current_user['uid']
+    announcements = await AnnouncementService.get_my_announcements(user_id=user_id, status='booked', filters=filters,  db=db)
+    return {'announcements': announcements}
+
 
 
 #TODO подумать а можно ли удалять вообщще забронированные(пока что нельзя)

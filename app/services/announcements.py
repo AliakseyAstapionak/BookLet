@@ -2,7 +2,7 @@ from typing import Literal, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from models import AnnouncementModel, StatusEnum, UserModel
-from schemas import AnnouncementFiltersSchema, AnnouncementResponseSchema, SortEnum
+from schemas import AnnouncementFiltersSchema, AnnouncementResponseSchema, SortEnum, MyAnnouncementFiltersSchema
 
 SORT_MAP = {
     SortEnum.NEWEST:     (AnnouncementModel.created_at.desc(), AnnouncementModel.id.desc()),
@@ -36,12 +36,17 @@ class AnnouncementService:
 
 # TODO добавить фильтры и тп
     @staticmethod
-    async def get_my_announcements(user_id: int, db: AsyncSession, limit: int = 20, offset: int = 0) -> AnnouncementResponseSchema :
-        query = (select(AnnouncementModel)
-                .where(AnnouncementModel.user_id == user_id)
-                .order_by(AnnouncementModel.created_at.desc(), AnnouncementModel.id.desc())
-                .limit(limit)
-                .offset(offset))
+    async def get_my_announcements(user_id: int, filters: MyAnnouncementFiltersSchema, status: Literal['active', 'archived', 'booked'], db: AsyncSession, limit: int = 20, offset: int = 0) -> AnnouncementResponseSchema :
+        query = select(AnnouncementModel).where(AnnouncementModel.status == status, AnnouncementModel.user_id == user_id)
+        if filters.name:
+            query = query.where(AnnouncementModel.name.ilike(f"%{filters.name}%"))
+        if filters.type:
+            query = query.where(AnnouncementModel.name == filters.name)
+        if filters.min_price:
+            query = query.where(AnnouncementModel.price >= filters.min_price)
+        if filters.max_price:
+            query = query.where(AnnouncementModel.max_price <= filters.max_price)
+        query = query.order_by(*SORT_MAP[filters.sort]).limit(filters.limit).offset(filters.offset)
         result = await db.execute(query)
         return result.scalars().all()
 
