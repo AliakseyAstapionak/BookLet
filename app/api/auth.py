@@ -26,7 +26,7 @@ async def registration(newuser: UserRegistrationSchema, request: Request, backgr
         return {'success': True, 'msg': 'Код уже отправлен, проверьте почту'}
     return {'success': True, 'msg': 'Подтвердите регистрацию. Инструкция указана на данную почту'}
 
-
+#TODO сделать переотправку кода для подтверждения емаила
 @router.post('/registration/verify_email', response_model=UserPublicActionSchema, status_code=status.HTTP_201_CREATED)
 async def verify_email(usercode: VerifyCodeSchema, request: Request, response: Response, db=Depends(get_db)):
     data = check_reg_token(request)
@@ -47,9 +47,6 @@ async def verify_email(usercode: VerifyCodeSchema, request: Request, response: R
     return {'success': True, 'user': new_user}
 
 # @router.post('/registration/verify_email/resend_code')
-# async def resend_registration_code(request: Request):
-#     data = check_reg_token(request=request)
-#     ...
 
 
 @router.post('/login')

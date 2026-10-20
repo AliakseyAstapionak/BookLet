@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from utils import verify_password, hash_password
-from schemas import ChangePasswordSchema, CreateAnnouncementSchema
+from schemas import ChangePasswordSchema, CreateAnnouncementSchema, AnnouncementResponseSchema
 from services import UserService, AnnouncementService
 from core import get_db
 from utils import get_current_user
@@ -35,6 +35,7 @@ async def change_password(data: ChangePasswordSchema, request: Request, db=Depen
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Не удалось поменять пароль")
     return {'success': True, 'msg': 'Пароль успешно изменен'}
 
+
 @router.post('/my_announcements/create')
 async def create_announcement(anc: CreateAnnouncementSchema, db=Depends(get_db), current_data=Depends(get_current_user)):
     user_id = current_data['uid']
@@ -42,12 +43,12 @@ async def create_announcement(anc: CreateAnnouncementSchema, db=Depends(get_db),
                                                                     price=anc.price, description=anc.description, db=db)
     return {'success': True, 'new_announcement': new_announcement}
 
-
-@router.post('/my_announcements')
+#TODO добавить фильтры 
+@router.post('/my_announcements', response_model=AnnouncementResponseSchema)
 async def my_anniouncemets(request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
     user_id = current_user['uid']
     announcements = await AnnouncementService.get_my_announcements(user_id=user_id, db=db)
-    return {'success': True, 'announcements': announcements}
+    return {'announcements': announcements}
 
 
 #TODO подумать а можно ли удалять вообщще забронированные(пока что нельзя)

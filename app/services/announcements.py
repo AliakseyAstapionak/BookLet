@@ -2,7 +2,14 @@ from typing import Literal, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from models import AnnouncementModel, StatusEnum, UserModel
+from schemas import AnnouncementFiltersSchema, AnnouncementResponseSchema, SortEnum
 
+SORT_MAP = {
+    SortEnum.NEWEST:     (AnnouncementModel.created_at.desc(), AnnouncementModel.id.desc()),
+    SortEnum.PRICE_ASC:  (AnnouncementModel.price.asc(), AnnouncementModel.id.asc()),
+    SortEnum.PRICE_DESC: (AnnouncementModel.price.desc(), AnnouncementModel.id.asc()),
+    SortEnum.NAME:       (AnnouncementModel.name.asc(), AnnouncementModel.id.asc()),
+}
 
 class AnnouncementService:
     
@@ -29,7 +36,7 @@ class AnnouncementService:
 
 # TODO добавить фильтры и тп
     @staticmethod
-    async def get_my_announcements(user_id: int, db: AsyncSession, limit: int = 20, offset: int = 0) -> List[AnnouncementModel]:
+    async def get_my_announcements(user_id: int, db: AsyncSession, limit: int = 20, offset: int = 0) -> AnnouncementResponseSchema :
         query = (select(AnnouncementModel)
                 .where(AnnouncementModel.user_id == user_id)
                 .order_by(AnnouncementModel.created_at.desc(), AnnouncementModel.id.desc())
@@ -40,8 +47,25 @@ class AnnouncementService:
 
 
     @staticmethod
-    async def delete_announcement(id: int, db: AsyncSession):
+    async def delete_announcement(id: int, db: AsyncSession) -> bool:
         query = update(AnnouncementModel).where(AnnouncementModel.id == id, AnnouncementModel.status == StatusEnum.ACTIVE).values(status=StatusEnum.ARCHIVED)
         result = await db.execute(query)
         await db.commit()
         return result.rowcount > 0
+
+    @staticmethod
+    async def get_catalog(filters: AnnouncementFiltersSchema, db: AsyncSession) -> AnnouncementResponseSchema:
+        query = select(AnnouncementModel).where(AnnouncementModel.status == 'active')
+        if filters.name:
+            query = query.where(AnnouncementModel.name.ilike(f"%{filters.name}%"))
+        if filters.type:
+            query = query.where(AnnouncementModel.name == filters.name)
+        if filters.min_price:
+            query = query.where(AnnouncementModel.price >= filters.min_price)
+        if filters.max_price:
+            query = query.where(AnnouncementModel.max_price <= filters.max_price)
+        if filters.provider:
+            query = query.join(UserModel).where(UserModel.name == filters.provider)
+        query = query.order_by(*SORT_MAP[filters.sort]).limit(filters.limit).offset(filters.offset)
+        result = await db.execute(query)
+        return result.scalars().all()

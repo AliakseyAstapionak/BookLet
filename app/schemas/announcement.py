@@ -1,12 +1,15 @@
 from pydantic import BaseModel, Field, field_validator
-from typing import Literal
+from typing import Literal, List, Any
+from models import AnnouncementModel
+
 
 class CreateAnnouncementSchema(BaseModel):
     name: str = Field(min_length=3, max_length=100, detail='Название услуги')
-    status: Literal['active', 'archived', 'booked']
+    status: Literal['active', 'archived', 'booked'] 
     type: str = Field(max_length=100, detail='Тип услуги')
     description: str | None = Field(max_length=1000, detail='Описание услуги')
     price: int = Field(ge=0)
+    
 
     @field_validator('description')
     @classmethod
@@ -14,4 +17,7 @@ class CreateAnnouncementSchema(BaseModel):
         if value == '':
             value = None
         return value
+
+class AnnouncementResponseSchema(BaseModel):
+    announcements: List[Any] # почему то List[AnnouncementModel] не работает
 
