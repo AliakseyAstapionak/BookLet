@@ -80,7 +80,8 @@ class ChangePasswordSchema(BaseModel):
             raise ValueError("Пароль должен содержать хотя-бы один спецсимвол(напр. '!@#$%^&*')")
         return value
 
-
+class VerifyCodeSchema(BaseModel):
+    usercode: str
 
 
 

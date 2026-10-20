@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Literal
 
 class CreateAnnouncementSchema(BaseModel):
@@ -7,4 +7,11 @@ class CreateAnnouncementSchema(BaseModel):
     type: str = Field(max_length=100, detail='Тип услуги')
     description: str | None = Field(max_length=1000, detail='Описание услуги')
     price: int = Field(ge=0)
+
+    @field_validator('description')
+    @classmethod
+    def description_validator(cls, value: str):
+        if value == '':
+            value = None
+        return value
 

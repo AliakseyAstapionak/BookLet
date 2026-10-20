@@ -1,2 +1,2 @@
-from .auth import UserRegistrationSchema, UserPublicActionSchema, UserLoginSchema, UserForgotPasswordSchema, ResetPasswordSchema, ChangePasswordSchema
+from .auth import UserRegistrationSchema, UserPublicActionSchema, UserLoginSchema, UserForgotPasswordSchema, ResetPasswordSchema, ChangePasswordSchema, VerifyCodeSchema
 from .announcement import CreateAnnouncementSchema

@@ -15,7 +15,6 @@ async def check_password(password, userdata: dict=Depends(get_current_user), db:
         return False
     return await verify_password(password=password ,hashed_password=hash_password)
 
-    
 #TODO попросить пароль для подтверждения
 @router.post('/account/settings/security/2fa', response_model=None)
 async def change_2fa(password: str, request: Request, db=Depends(get_db), current_data=Depends(get_current_user), check_pass=Depends(check_password)):
@@ -37,7 +36,30 @@ async def change_password(data: ChangePasswordSchema, request: Request, db=Depen
     return {'success': True, 'msg': 'Пароль успешно изменен'}
 
 @router.post('/my_announcements/create')
-async def create_announcement(announcement: CreateAnnouncementSchema, db=Depends(get_db), current_data=Depends(get_current_user)):
+async def create_announcement(anc: CreateAnnouncementSchema, db=Depends(get_db), current_data=Depends(get_current_user)):
     user_id = current_data['uid']
-    new_announcement = await AnnouncementService.create_announcement(...)
+    new_announcement = await AnnouncementService.create_announcement(user_id=current_data['uid'], name=anc.name, status=anc.status, type=anc.type,
+                                                                    price=anc.price, description=anc.description, db=db)
+    return {'success': True, 'new_announcement': new_announcement}
 
+
+@router.post('/my_announcements')
+async def my_anniouncemets(request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
+    user_id = current_user['uid']
+    announcements = await AnnouncementService.get_my_announcements(user_id=user_id, db=db)
+    return {'success': True, 'announcements': announcements}
+
+
+#TODO подумать а можно ли удалять вообщще забронированные(пока что нельзя)
+@router.post('/my_announcements/{anc_id}/archive')
+async def delete_annoncement(anc_id: int, request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
+    user_id = current_user['uid']
+    anc_user = await AnnouncementService.get_announcement_user(id=anc_id, db=db)
+    if anc_user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Объявление не найдено')
+    if user_id != anc_user:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Объявление не найдено')   # см. ниже
+    if not await AnnouncementService.delete_announcement(id=anc_id, db=db):
+        raise HTTPException(status.HTTP_409_CONFLICT,
+                            detail='Нельзя удалить забронированное или уже архивированное объявление')
+    return {'success': True, 'msg': 'Объявление занесено в архив'}
