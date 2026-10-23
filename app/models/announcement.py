@@ -1,9 +1,10 @@
 from core.database import Base
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import String, Integer, DateTime, func, Text, ForeignKey
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 import enum
+from models.tables import user_liked_announcements
 
 #TODO подумать над тем чтобы был какой то словарь из всех озможный типов и пользователь уже выбирал
 class StatusEnum(str, enum.Enum):
@@ -26,3 +27,7 @@ class AnnouncementModel(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(),nullable=False)
 
     user: Mapped["UserModel"] = relationship(back_populates="announcements")
+    liked_by_users: Mapped[List["UserModel"]] = relationship(
+        secondary=user_liked_announcements,
+        back_populates="liked_announcements"
+    )

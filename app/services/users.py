@@ -1,6 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, exists, update, not_
-from models import UserModel
+from sqlalchemy import select, exists, update, not_, select, insert, delete
+from models import UserModel, AnnouncementModel
+from models.tables import user_liked_announcements
+
 from typing import Optional
 
 class UserService:
@@ -71,3 +73,34 @@ class UserService:
         result = await db.execute(query)
         await db.commit()
         return result.rowcount > 0
+
+    @staticmethod
+    async def like_announcement(uid: int, anc_id: int, db: AsyncSession):
+        stmt = select(user_liked_announcements).where(user_liked_announcements.c.user_id == uid, user_liked_announcements.c.announcement_id == anc_id )
+        result = await db.execute(stmt)
+        existing_like = result.fetchone()
+        if existing_like:
+            del_stmt = delete(user_liked_announcements).where(user_liked_announcements.c.user_id == uid, user_liked_announcements.c.announcement_id == anc_id)
+            await db.execute(del_stmt)
+            message = "Удалено из избранного"
+            is_liked = False
+        else:
+            ins_stmt = insert(user_liked_announcements).values(user_id=uid, announcement_id=anc_id)
+            await db.execute(ins_stmt)
+            message = "Добавлено в избранное"
+            is_liked = True
+        await db.commit()
+
+        return {
+            "message": message,
+            "is_liked": is_liked
+        }
+
+    @staticmethod
+    async def get_liked_user_announcements(uid: int, db: AsyncSession):
+        stmt = (select(AnnouncementModel).join(user_liked_announcements, AnnouncementModel.id == user_liked_announcements.c.announcement_id
+                ).where(user_liked_announcements.c.user_id == uid))
+        result = await db.execute(stmt)
+        return result.scalars().all()
+
+        

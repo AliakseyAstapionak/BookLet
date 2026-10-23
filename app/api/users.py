@@ -57,13 +57,18 @@ async def my_anniouncemets(filters: Annotated[MyAnnouncementFiltersSchema, Query
     user_id = current_user['uid']
     announcements = await AnnouncementService.get_my_announcements(user_id=user_id, status='archived', filters=filters,  db=db)
     return {'announcements': announcements}
-
+#TODO подумать над тем как разьединить мною забронированные и которые забронировали у меня
+#TODO подумать может можно сделать бронирование также как и лайки
 @router.post('/my_announcements/booked', response_model=AnnouncementResponseSchema, )
 async def my_anniouncemets(filters: Annotated[MyAnnouncementFiltersSchema, Query()], request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
     user_id = current_user['uid']
     announcements = await AnnouncementService.get_my_announcements(user_id=user_id, status='booked', filters=filters,  db=db)
     return {'announcements': announcements}
 
+@router.post('/my_favourites')
+async def my_favourites(request: Request, current_data=Depends(get_current_user), db=Depends(get_db)):
+    announcements = await UserService.get_liked_user_announcements(uid=current_data['uid'], db=db)
+    return {'announcements': announcements, 'total': len(announcements)}
 
 
 #TODO подумать а можно ли удалять вообщще забронированные(пока что нельзя)

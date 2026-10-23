@@ -74,3 +74,5 @@ class AnnouncementService:
         query = query.order_by(*SORT_MAP[filters.sort]).limit(filters.limit).offset(filters.offset)
         result = await db.execute(query)
         return result.scalars().all()
+
+
