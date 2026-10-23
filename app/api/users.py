@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from utils import verify_password, hash_password
 from schemas import (ChangePasswordSchema, CreateAnnouncementSchema, 
-                    AnnouncementResponseSchema, MyAnnouncementFiltersSchema)
+                    AnnouncementResponseSchema, MyAnnouncementFiltersSchema, Changr2FASchema)
 from services import UserService, AnnouncementService
 from core import get_db
 from utils import get_current_user
@@ -19,7 +19,8 @@ async def check_password(password, userdata: dict=Depends(get_current_user), db:
 
 #TODO попросить пароль для подтверждения
 @router.post('/account/settings/security/2fa', response_model=None)
-async def change_2fa(password: str, request: Request, db=Depends(get_db), current_data=Depends(get_current_user), check_pass=Depends(check_password)):
+async def change_2fa(data: Changr2FASchema, request: Request, db=Depends(get_db), current_data=Depends(get_current_user), check_pass=Depends(check_password)):
+    password = data.password
     if not check_pass:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Неверный пароль')  
     result = await UserService.change_2fa(user_id=current_data['uid'], db=db)
@@ -46,26 +47,26 @@ async def create_announcement(anc: CreateAnnouncementSchema, db=Depends(get_db),
     return {'success': True, 'new_announcement': new_announcement}
 
 #TODO добавить фильтры 
-@router.post('/my_announcements/active', response_model=AnnouncementResponseSchema, )
+@router.get('/my_announcements/active', response_model=AnnouncementResponseSchema, )
 async def my_anniouncemets(filters: Annotated[MyAnnouncementFiltersSchema, Query()], request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
     user_id = current_user['uid']
     announcements = await AnnouncementService.get_my_announcements(user_id=user_id, status='active', filters=filters,  db=db)
     return {'announcements': announcements}
 
-@router.post('/my_announcements/archived', response_model=AnnouncementResponseSchema, )
+@router.get('/my_announcements/archived', response_model=AnnouncementResponseSchema, )
 async def my_anniouncemets(filters: Annotated[MyAnnouncementFiltersSchema, Query()], request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
     user_id = current_user['uid']
     announcements = await AnnouncementService.get_my_announcements(user_id=user_id, status='archived', filters=filters,  db=db)
     return {'announcements': announcements}
 #TODO подумать над тем как разьединить мною забронированные и которые забронировали у меня
 #TODO подумать может можно сделать бронирование также как и лайки
-@router.post('/my_announcements/booked', response_model=AnnouncementResponseSchema, )
+@router.get('/my_announcements/booked', response_model=AnnouncementResponseSchema, )
 async def my_anniouncemets(filters: Annotated[MyAnnouncementFiltersSchema, Query()], request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
     user_id = current_user['uid']
     announcements = await AnnouncementService.get_my_announcements(user_id=user_id, status='booked', filters=filters,  db=db)
     return {'announcements': announcements}
 
-@router.post('/my_favourites')
+@router.get('/my_favourites')
 async def my_favourites(request: Request, current_data=Depends(get_current_user), db=Depends(get_db)):
     announcements = await UserService.get_liked_user_announcements(uid=current_data['uid'], db=db)
     return {'announcements': announcements, 'total': len(announcements)}

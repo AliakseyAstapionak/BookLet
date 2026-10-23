@@ -22,7 +22,7 @@ class AnnouncementModel(Base):
     type: Mapped[str] = mapped_column(String(100), nullable=False)
     description:  Mapped[Optional[str]] = mapped_column(Text)
     price: Mapped[int] = mapped_column(Integer, nullable=False)
-    status: Mapped[StatusEnum] = mapped_column(nullable=False)
+    status: Mapped[StatusEnum] = mapped_column(nullable=False, default='active')
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(),nullable=False)
 

@@ -45,7 +45,7 @@ class AnnouncementService:
         if filters.min_price:
             query = query.where(AnnouncementModel.price >= filters.min_price)
         if filters.max_price:
-            query = query.where(AnnouncementModel.max_price <= filters.max_price)
+            query = query.where(AnnouncementModel.price <= filters.max_price)
         query = query.order_by(*SORT_MAP[filters.sort]).limit(filters.limit).offset(filters.offset)
         result = await db.execute(query)
         return result.scalars().all()
@@ -64,13 +64,13 @@ class AnnouncementService:
         if filters.name:
             query = query.where(AnnouncementModel.name.ilike(f"%{filters.name}%"))
         if filters.type:
-            query = query.where(AnnouncementModel.name == filters.name)
+            query = query.where(AnnouncementModel.type == filters.type)
         if filters.min_price:
             query = query.where(AnnouncementModel.price >= filters.min_price)
         if filters.max_price:
-            query = query.where(AnnouncementModel.max_price <= filters.max_price)
+            query = query.where(AnnouncementModel.price <= filters.max_price)
         if filters.provider:
-            query = query.join(UserModel).where(UserModel.name == filters.provider)
+            query = query.join(UserModel).where(UserModel.username == filters.provider)
         query = query.order_by(*SORT_MAP[filters.sort]).limit(filters.limit).offset(filters.offset)
         result = await db.execute(query)
         return result.scalars().all()

@@ -83,6 +83,9 @@ class ChangePasswordSchema(BaseModel):
 class VerifyCodeSchema(BaseModel):
     usercode: str
 
+class Changr2FASchema(BaseModel):
+    password: str
+
 
 
 

@@ -1,0 +1,24 @@
+Эти ошибки ломают эндпоинты (500)
+
+    В services/announcements.py в строках 47–48 и 70–71 используется AnnouncementModel.max_price, а такого поля нет, нужно .price. Любой запрос каталога или «моих объявлений» с max_price упадёт.
+    Строка 73: UserModel.name не существует, должно быть UserModel.username. Фильтр provider сейчас не работает.
+    Фильтр type сравнивает AnnouncementModel.name == filters.name. Должно быть AnnouncementModel.type == filters.type.
+    if filters.min_price: игнорирует значение 0. Используй is not None.
+
+Безопасность (часть уже в твоём списке в docstring main.py, но ещё не исправлена)
+
+    В change_2fa пароль передаётся в query-параметре, а значит попадает в логи и историю браузера. Его нужно передавать в теле запроса через схему.
+В can_send_2fa_code и can_send_registration_code для кодов используется random.randint. Замени на secrets.randbelow(900000) + 100000.
+CreateAnnouncementSchema разрешает клиенту самому задать status, в том числе booked. Статус при создании должен ставиться сервером как active.
+После logout, смены и сброса пароля старый JWT остаётся валидным. Нужен token_version в пользователе или denylist в Redis.
+На forgot_password нет rate limit, и ответы разные («нет пользователя», «не тот email»), так что можно перебирать аккаунты. Ответ должен быть всегда одинаковым.
+В reg_code:{email} данные перезаписываются через hset. После истечения кулдауна в 60 секунд другой человек может перезаписать username и пароль для чужого email. Тогда владелец почты подтвердит аккаунт, созданный с чужими данными. Лучше привязывать код к username+email или не перезаписывать, пока ключ жив.
+Если username успели занять между регистрацией и подтверждением, create_user упадёт на unique-констрейнте с 500. Нужно ловить IntegrityError.
+secure=False для cookie и ссылка http://BookLet/... захардкожены. Вынеси их в settings.
+
+Мелкие замечания
+
+        ad-эндпоинты (/catalog/{id}, /my_announcements/*, /my_favourites) сделаны через POST. Должен быть GET.
+    В health.py и в users.py несколько функций с одинаковым именем, из-за чего в OpenAPI будут дубли operationId.
+    Нет response_model у каталога и create_announcement, поэтому наружу уходят все поля ORM-объекта.
+    Все print для ошибок стоит заменить на logging.
