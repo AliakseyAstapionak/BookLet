@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, update
 from fastapi import HTTPException, status
 from models import UserModel, BookingModel, AnnouncementModel, BookingStatus, StatusEnum, NotificationModel
 from services.announcements import AnnouncementService
@@ -55,3 +55,31 @@ class BookingService:
                 .limit(limit).offset(offset))
         rows = (await db.execute(query)).mappings().all()
         return {'bookings': [dict(r) for r in rows], 'total': total}
+
+
+    @staticmethod
+    async def cancel_my_booking(anc_id: int, client_id: int, client_name: str, db: AsyncSession) -> None:
+        query = (select(BookingModel, AnnouncementModel).join(AnnouncementModel, AnnouncementModel.id == BookingModel.announcement_id)
+        .where(BookingModel.announcement_id == anc_id,
+                BookingModel.client_id == client_id,
+                BookingModel.status == BookingStatus.CONFIRMED))
+        row = (await db.execute(query)).first()
+        if not row:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail='У вас нет активной брони на это объявление')
+        booking, announcement = row
+        res = await db.execute(update(BookingModel).where(BookingModel.id == booking.id, BookingModel.status == BookingStatus.CONFIRMED)
+                .values(status=BookingStatus.CANCELLED, cancelled_by_id=client_id))
+        if res.rowcount == 0:
+            await db.rollback()
+            raise HTTPException(status.HTTP_409_CONFLICT, detail='Бронь уже отменена')
+
+        await db.execute(update(AnnouncementModel).where(AnnouncementModel.id == anc_id, AnnouncementModel.status == StatusEnum.BOOKED)
+                .values(status=StatusEnum.ACTIVE))
+        
+        db.add(NotificationModel(
+            to_user_id=booking.provider_id, sender_id=client_id, type='booking_cancelled', booking_id=booking.id,
+            title='❌ Бронь отменена',
+            text=f'Пользователь @{client_name} отменил бронь «{announcement.name}». Объявление снова доступно в каталоге.'))
+        
+        await db.commit()
+        return True

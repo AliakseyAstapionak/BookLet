@@ -4,7 +4,7 @@ import uvicorn
 from contextlib import asynccontextmanager
 from api import auth_router, user_router, health_router, catalog_router
 
-
+#TODO сделать при ббронировании сообщение не только продавцу но и самому клиенту чтобы он мог посмотреть типо истории
 #TODO подумать как обощить rpslimeter чтобы не переписывать его на каждую функцию
 #TODO Дополнительно можно запретить клиенту две записи на пересекающееся время у разных продавцов: такой же EXCLUDE, только по client_id
 """Критичное и серьёзное
