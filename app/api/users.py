@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from utils import verify_password, hash_password
 from schemas import (ChangePasswordSchema, CreateAnnouncementSchema, 
-                    AnnouncementResponseSchema, MyAnnouncementFiltersSchema, Changr2FASchema,
+                    AnnouncementResponseSchema, MyAnnouncementFiltersSchema, Change2FASchema,
                     MyNotificationsResponseSchema)
 from services import UserService, AnnouncementService, NotificationService
 from core import get_db
@@ -12,16 +12,15 @@ from typing import Annotated
 
 router = APIRouter(prefix='/BookLet', tags=['Функции пользователя'])
 
-async def check_password(password, userdata: dict=Depends(get_current_user), db: AsyncSession=Depends(get_db)):
+async def check_password(data: Change2FASchema, userdata: dict=Depends(get_current_user), db: AsyncSession=Depends(get_db)):
     hash_password = await UserService.get_password_by_username(username=userdata['username'], db=db)
     if not hash_password:
         return False
-    return await verify_password(password=password ,hashed_password=hash_password)
+    return await verify_password(password=data.password ,hashed_password=hash_password)
 
 #TODO попросить пароль для подтверждения
 @router.post('/account/settings/security/2fa', response_model=None)
-async def change_2fa(data: Changr2FASchema, request: Request, db=Depends(get_db), current_data=Depends(get_current_user), check_pass=Depends(check_password)):
-    password = data.password
+async def change_2fa(data: Change2FASchema, request: Request, db=Depends(get_db), current_data=Depends(get_current_user), check_pass=Depends(check_password)):
     if not check_pass:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Неверный пароль')  
     result = await UserService.change_2fa(user_id=current_data['uid'], db=db)
@@ -39,7 +38,7 @@ async def change_password(data: ChangePasswordSchema, request: Request, db=Depen
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Не удалось поменять пароль")
     return {'success': True, 'msg': 'Пароль успешно изменен'}
 
-@router.get('my_notifications', response_model=MyNotificationsResponseSchema)
+@router.get('/my_notifications', response_model=MyNotificationsResponseSchema)
 async def get_my_notifications(request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
     notifications = await NotificationService.get_my_notifications(user_id=current_user['uid'], db=db)
     return {'notifications': notifications}
