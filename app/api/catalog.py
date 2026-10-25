@@ -23,6 +23,8 @@ async def announcement(anc_id: int, db=Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Данное обьявление недоступно')
     return {'success': True, 'announcement': result}
 
+
+#TODO сделать проверку на то чтобы нелья было лакать свои обьявления
 @router.post('/catalog/{anc_id}/like')
 async def like_anc(anc_id: int, request: Request, db: AsyncSession =Depends(get_db), current_data=Depends(get_current_user)):
     announcement = await AnnouncementService.get_announcement(id=anc_id, db=db)
@@ -30,12 +32,6 @@ async def like_anc(anc_id: int, request: Request, db: AsyncSession =Depends(get_
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Объявление не найдено")
     result = await UserService.like_announcement(uid=current_data['uid'], anc_id=anc_id, db=db)
     return result
-
-
-"""клиент отправляет запрос  →  бронь создаётся со статусом pending
-                          →  провайдеру приходит уведомление
-провайдер подтверждает    →  confirmed  (клиенту уведомление)
-провайдер отклоняет       →  cancelled  (клиенту уведомление)"""
 
 
 """2. Уведомления в приложении. Таблица notifications и эндпоинт, который их отдаёт:
@@ -51,26 +47,15 @@ class NotificationModel(Base):
     is_read: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_col"""
 
-
+#TODO подумать на каких условиях продавец может отменить бронь
 #TODO подумать как лучще сделать проверку на второй раз подачи заявки, то есть что будет если продавец окажет бронировае, то тогда второй раз не сможет он отправить запрос на бронирование.
 @router.post('/catalog/{anc_id}/book')
 async def book_announcement(anc_id: int, request: Request, db: AsyncSession=Depends(get_db), current_data=Depends(get_current_user)):
-    data = await BookingService.book_announcement(anc_id=anc_id, client_id=current_data['uid'], db=db)
     client_name = current_data['username']
-    anc_name = await AnnouncementService.get_announcement_name(id=anc_id, db=db)
-    msg_title = "🔔 Новый запрос на бронирование"
-    msg_text = (
-        f"Пользователь @{client_name} оставил заявку на бронирование "
-        f"вашего объявления «{anc_name}».\n\n"
-        f"📌 Статус: Ожидает подтверждения ⏳\n"
-        f"Перейдите в личный кабинет, чтобы подтвердить или отклонить заявку."
-    )
-    success = await NotificationService.send_book_message(to_user_id=data['provider_id'], sender_id=current_data['uid'], title=msg_title, msg_text=msg_text, db=db)
-    if not success:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Произошла ошибка, заявка не добавлена, попробуйте позже')
-    
-    
-    return {"success": True, "message": "Запрос на бронирование успешно отправлен"}
+    client_id = current_data['uid']
+    booking = await BookingService.book_announcement(anc_id=anc_id, client_id=client_id, client_name=client_name, db=db)
+
+    return {"success": True, "message": "Бронирование прошло успешно"}
 
 
 

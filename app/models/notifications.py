@@ -10,4 +10,6 @@ class NotificationModel(Base):
     sender_id: Mapped[int | None] = mapped_column(ForeignKey('users.id'), index=True, nullable=True, default=None)
     title: Mapped[str] = mapped_column(String, nullable=False)                 
     text: Mapped[str] = mapped_column(Text, nullable=False)  
+    type: Mapped[str] = mapped_column(String(50), nullable=False, default='general', server_default='general')
+    booking_id: Mapped[int | None] = mapped_column(ForeignKey('bookings.id', ondelete='SET NULL'), nullable=True, default=None)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())

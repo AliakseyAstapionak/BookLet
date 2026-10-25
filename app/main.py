@@ -6,7 +6,7 @@ from api import auth_router, user_router, health_router, catalog_router
 
 
 #TODO подумать как обощить rpslimeter чтобы не переписывать его на каждую функцию
-
+#TODO Дополнительно можно запретить клиенту две записи на пересекающееся время у разных продавцов: такой же EXCLUDE, только по client_id
 """Критичное и серьёзное
 Пароль в query-параметрах. В change_2fa параметр password: str без Body FastAPI превращает в query-параметр, то есть в ?password=.... Он попадает в логи прокси, историю браузера и Referer. Тот же check_password как зависимость тянет password из query. Перенеси пароль в тело запроса через схему. Код 2FA (usercode: int в /login/2fa) тоже лучше передавать в теле.
 random для кода 2FA. random.randint не криптостойкий. Используй secrets.randbelow(900000) + 100000.
