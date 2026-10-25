@@ -3,3 +3,4 @@ from .auth import (UserRegistrationSchema, UserPublicActionSchema, UserLoginSche
 from .announcement import CreateAnnouncementSchema, AnnouncementResponseSchema
 from .filters import AnnouncementFiltersSchema, SortEnum, MyAnnouncementFiltersSchema
 from .notifications import MyNotificationsResponseSchema
+from .bookings import MyBookingsResponseSchema

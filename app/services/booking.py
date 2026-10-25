@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from fastapi import HTTPException, status
-from models import BookingModel, AnnouncementModel, BookingStatus, StatusEnum, NotificationModel
+from models import UserModel, BookingModel, AnnouncementModel, BookingStatus, StatusEnum, NotificationModel
 from services.announcements import AnnouncementService
 from typing import Dict
 
@@ -34,3 +34,24 @@ class BookingService:
         await db.refresh(booking)
         return booking
 
+
+    @staticmethod
+    async def get_my_bookings_as_client(client_id: int, status_filter: BookingStatus | None,
+                            limit: int, offset: int, db: AsyncSession) -> dict:
+        conditions = [BookingModel.client_id == client_id]
+        if status_filter:
+            conditions.append(BookingModel.status == status_filter)
+        total = (await db.execute(
+            select(func.count()).select_from(BookingModel).where(*conditions))).scalar_one()
+        query = (select(BookingModel.id, BookingModel.announcement_id, BookingModel.provider_id,
+                        BookingModel.status, BookingModel.start_at, BookingModel.end_at,
+                        BookingModel.created_at,
+                        AnnouncementModel.name.label('announcement_name'), AnnouncementModel.price,
+                        UserModel.username.label('provider_username'))
+                .join(AnnouncementModel, AnnouncementModel.id == BookingModel.announcement_id)
+                .join(UserModel, UserModel.id == BookingModel.provider_id)
+                .where(*conditions)
+                .order_by(BookingModel.created_at.desc(), BookingModel.id.desc())
+                .limit(limit).offset(offset))
+        rows = (await db.execute(query)).mappings().all()
+        return {'bookings': [dict(r) for r in rows], 'total': total}

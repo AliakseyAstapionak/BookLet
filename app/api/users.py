@@ -3,11 +3,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from utils import verify_password, hash_password
 from schemas import (ChangePasswordSchema, CreateAnnouncementSchema, 
                     AnnouncementResponseSchema, MyAnnouncementFiltersSchema, Change2FASchema,
-                    MyNotificationsResponseSchema)
-from services import UserService, AnnouncementService, NotificationService
+                    MyNotificationsResponseSchema, MyBookingsResponseSchema)
+from services import UserService, AnnouncementService, NotificationService, BookingService, BookingStatus
 from core import get_db
 from utils import get_current_user
-from typing import Annotated
+from typing import Annotated, Optional
 
 
 router = APIRouter(prefix='/BookLet', tags=['Функции пользователя'])
@@ -63,7 +63,7 @@ async def my_anniouncemets(filters: Annotated[MyAnnouncementFiltersSchema, Query
     user_id = current_user['uid']
     announcements = await AnnouncementService.get_my_announcements(user_id=user_id, status='archived', filters=filters,  db=db)
     return {'announcements': announcements}
-#TODO подумать над тем как разьединить мною забронированные и которые забронировали у меня
+
 #TODO подумать может можно сделать бронирование также как и лайки
 @router.get('/my_announcements/booked', response_model=AnnouncementResponseSchema, )
 async def my_anniouncemets(filters: Annotated[MyAnnouncementFiltersSchema, Query()], request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
@@ -90,3 +90,10 @@ async def delete_annoncement(anc_id: int, request: Request, db=Depends(get_db), 
         raise HTTPException(status.HTTP_409_CONFLICT,
                             detail='Нельзя удалить забронированное или уже архивированное объявление')
     return {'success': True, 'msg': 'Объявление занесено в архив'}
+
+@router.get('/my_bookings', response_model=MyBookingsResponseSchema)
+async def get_my_bookings(status_filter: Optional[BookingStatus] = Query(default=None, alias='status'), limit: int = Query(default=20, ge=1, le=150),
+        offset: int = Query(default=0, ge=0),
+        db: AsyncSession = Depends(get_db),
+        current_user=Depends(get_current_user)):
+    return await BookingService.get_my_bookings_as_client(client_id=current_user['uid'], status_filter=status_filter, limit=limit, offset=offset, db=db)

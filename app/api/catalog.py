@@ -33,20 +33,6 @@ async def like_anc(anc_id: int, request: Request, db: AsyncSession =Depends(get_
     result = await UserService.like_announcement(uid=current_data['uid'], anc_id=anc_id, db=db)
     return result
 
-
-"""2. Уведомления в приложении. Таблица notifications и эндпоинт, который их отдаёт:
-
-python
-class NotificationModel(Base):
-    __tablename__ = 'notifications'
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
-    text: Mapped[str] = mapped_column(String(300))
-    booking_id: Mapped[Optional[int]] = mapped_column(ForeignKey('bookings.id'))
-    is_read: Mapped[bool] = mapped_column(default=False)
-    created_at: Mapped[datetime] = mapped_col"""
-
 #TODO подумать на каких условиях продавец может отменить бронь
 #TODO подумать как лучще сделать проверку на второй раз подачи заявки, то есть что будет если продавец окажет бронировае, то тогда второй раз не сможет он отправить запрос на бронирование.
 @router.post('/catalog/{anc_id}/book')
