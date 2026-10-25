@@ -26,6 +26,10 @@ class AnnouncementModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(),nullable=False)
 
+    duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=60, server_default='60')
+    cancel_before_hours: Mapped[int] = mapped_column(Integer, nullable=False, default=24, server_default='24')
+
+
     user: Mapped["UserModel"] = relationship(back_populates="announcements")
     liked_by_users: Mapped[List["UserModel"]] = relationship(
         secondary=user_liked_announcements,

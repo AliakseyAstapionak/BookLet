@@ -32,6 +32,18 @@ class AnnouncementService:
         query = select(AnnouncementModel.user_id).where(AnnouncementModel.id == id)
         result = await db.execute(query)
         return result.scalar()
+    
+    @staticmethod
+    async def existing_anouncement(id: int, db: AsyncSession) -> bool:
+        query = select(AnnouncementModel).where(AnnouncementModel.id == id) 
+        result = await db.execute(query)
+        return bool(result.scalar())
+
+    @staticmethod
+    async def get_announcement_name(id: int, db: AsyncSession):
+        query = select(AnnouncementModel.name).where(AnnouncementModel.id == id) 
+        result = await db.execute(query)
+        return result.scalar()
 
 
 # TODO добавить фильтры и тп

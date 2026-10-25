@@ -9,3 +9,5 @@ user_liked_announcements = Table(
     Column("announcement_id", ForeignKey("announcements.id", ondelete="CASCADE"), primary_key=True),
     Column("created_at", DateTime(timezone=True), server_default=func.now()) 
 )
+
+

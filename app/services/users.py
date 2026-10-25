@@ -38,6 +38,12 @@ class UserService:
         return result.scalar()
 
     @staticmethod
+    async def get_username(id: int, db: AsyncSession):
+        query = select(UserModel.username).where(UserModel.id == id)
+        result = await db.execute(query)
+        return result.scalar()
+
+    @staticmethod
     async def create_user(username: str, email: str, hashed_pwd: str, db: AsyncSession) -> UserModel:
         new_user = UserModel(username=username, email=email.lower(), hashed_pwd=hashed_pwd)
         db.add(new_user)

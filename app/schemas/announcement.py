@@ -3,9 +3,12 @@ from typing import Literal
 from datetime import datetime
 class CreateAnnouncementSchema(BaseModel):
     name: str = Field(min_length=3, max_length=100, detail='Название услуги')
+    status: Literal['active']
     type: str = Field(max_length=100, detail='Тип услуги')
     description: str | None = Field(max_length=1000, detail='Описание услуги')
     price: int = Field(ge=0)
+    duration_minutes: int = Field(ge=1, default=60)
+    cancel_before_hours: int = Field(ge=1, default=24)
     
 
     @field_validator('description')

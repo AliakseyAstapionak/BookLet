@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from utils import verify_password, hash_password
 from schemas import (ChangePasswordSchema, CreateAnnouncementSchema, 
-                    AnnouncementResponseSchema, MyAnnouncementFiltersSchema, Changr2FASchema)
-from services import UserService, AnnouncementService
+                    AnnouncementResponseSchema, MyAnnouncementFiltersSchema, Changr2FASchema,
+                    MyNotificationsResponseSchema)
+from services import UserService, AnnouncementService, NotificationService
 from core import get_db
 from utils import get_current_user
 from typing import Annotated
@@ -37,6 +38,11 @@ async def change_password(data: ChangePasswordSchema, request: Request, db=Depen
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Не удалось поменять пароль")
     return {'success': True, 'msg': 'Пароль успешно изменен'}
+
+@router.get('my_notifications', response_model=MyNotificationsResponseSchema)
+async def get_my_notifications(request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
+    notifications = await NotificationService.get_my_notifications(user_id=current_user['uid'], db=db)
+    return {'notifications': notifications}
 
 
 @router.post('/my_announcements/create')
