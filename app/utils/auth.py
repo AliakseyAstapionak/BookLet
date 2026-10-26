@@ -73,3 +73,5 @@ async def check_limit(type: str, request):
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f'Слишком много попыток. Повторите через {max(ttl, 1)} сек.')
     return key
+
+

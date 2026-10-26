@@ -1,0 +1,50 @@
+Что сломано
+
+1. booking_id в уведомлении всегда NULL. В базе после брони лежит (to_user=1, sender=2, booking_id=None), хотя бронь с id=1 создана. Причина в book_announcement: ты читаешь booking.id сразу после db.add(booking), а id появляется только после await db.flush(). Пока это не исправлено, из уведомления нельзя перейти к заказу. Исправление: добавь await db.flush() между db.add(booking) и созданием NotificationModel.
+
+2. /my_notifications («все») показывает только отправленные. У продавца после брони он вернул 0 уведомлений, а у клиента 1 (его же собственное). Причина в get_my_all_notifications: Python-оператор or между двумя SQL-условиями отбрасывает первое. Нужно or_:
+
+python
+from sqlalchemy import or_
+.where(or_(NotificationModel.to_user_id == user_id, NotificationModel.sender_id == user_id))
+
+3. В ответе нет id, поэтому отдельное уведомление нельзя запросить. В NotificationSchema только sender_id, title, text, created_at. Список не даёт клиенту id, чтобы открыть /incoming/{id}, и не даёт booking_id, чтобы перейти к заказу. Добавь в схему id, type, booking_id, to_user_id. Заодно sender_id сделай Optional[int]: в модели он может быть пустым, и системное уведомление без отправителя сейчас даст ошибку валидации.
+
+Мелочь рядом: в /sent/{id} текст ошибки скопирован из входящих, нужно «Отправленное уведомление не найдено».
+
+
+Объявление: что не работает
+
+1. Все ручки одного объявления падают с 500. Это /my_announcements/active/{id}, /archived/{id} и /booked/{id}. Я проверил их на Postgres: даже владелец с верным статусом получает 500, а список /my_announcements/active работает нормально.
+
+Причина в schemas/announcement.py: класс AnnouncementResponseSchema определён два раза с одним именем. Первый (announcement: AnnouncementOut) для одного объявления, второй (announcements: list[...]) для списка. Второй затирает первый, поэтому ручки одного объявления валидируют ответ по схеме списка, не находят поле announcements и падают.
+
+Исправление:
+
+переименуй первый класс, например в AnnouncementDetailSchema, и добавь его в schemas/__init__.py;
+в трёх ручках {anc_id} укажи response_model=AnnouncementDetailSchema.
+
+2. Нет 404, когда объявления нет. get_my_announcement возвращает None, а ручка отдаёт {'announcement': None} без проверки. Добавь во все три ручки:
+
+python
+if not announcement:
+    raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Объявление не найдено')
+
+Чужое объявление, объявление не с тем статусом (например, active/2, которое архивное) и несуществующее после этого дают одинаковый 404, и это правильно: так не раскрывается чужое.
+
+3. В ответе нет duration_minutes и cancel_before_hours. В AnnouncementOut их нет, и в странице одного объявления нельзя показать длительность и правило отмены. Добавь два поля в AnnouncementOut.
+
+Общий каталог (/catalog/{id})
+
+Здесь всё работает: активное объявление отдаётся, архивное и забронированное дают 400, несуществующее 404. Мелочь: это POST, хотя ручка только читает, логичнее GET.
+
+Заодно нашёл
+create_announcement игнорирует длительность и правило отмены. Я отправил duration_minutes=90, а в базе записалось 60. Эндпоинт не передаёт эти поля в сервис, а сервис их не принимает. Для бронирования это важно: cancel_before_hours тебе нужен для запрета отмены по времени.
+description стал обязательным. Без него create отвечает 422 «Field required». Моя форма в интерфейсе при пустом описании поле не отправляет, поэтому создание услуги без описания сейчас не работает. Нужно description: str | None = Field(default=None, max_length=1000, ...).
+Фильтр type в get_my_announcements по-прежнему сравнивает с name (AnnouncementModel.name == filters.name), нужно AnnouncementModel.type == filters.type.
+Три функции в users.py называются одинаково (my_active_announcemet). Работает, но в OpenAPI будет дублирование имён, а при объединении через параметр это уйдёт само.
+Как объединить без повторений
+
+
+2. change_password всё ещё падает с 500. check_password теперь принимает схему целиком, 
+а ты передаёшь data.password (строку). Должно быть:

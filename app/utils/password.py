@@ -17,3 +17,4 @@ async def verify_password(password: str, hashed_password: str) -> bool:
         return await asyncio.to_thread(bcrypt.checkpw, password_bytes, hashed_password.encode("utf-8"))
     except (ValueError, TypeError):
         return False
+

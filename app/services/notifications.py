@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from models import NotificationModel
-from sqlalchemy import select
-
+from sqlalchemy import select, or_
+from schemas import NotificationDataSchema
 
 class NotificationService:
 
@@ -13,8 +13,33 @@ class NotificationService:
         return True
     
 #TODO подумать как сделать так чтобы выводило и имя пользователя
+
     @staticmethod
-    async def get_my_notifications(user_id: int, db: AsyncSession):
+    async def get_my_all_notifications(user_id: int, db: AsyncSession):
+        query = (select(NotificationModel).where(or_(NotificationModel.to_user_id == user_id, NotificationModel.sender_id == user_id)).order_by(NotificationModel.created_at.desc()))
+        result = await db.execute(query)
+        return result.scalars().all()
+    
+    @staticmethod
+    async def get_my_encoming_notifications(user_id: int, db: AsyncSession):
         query = (select(NotificationModel).where(NotificationModel.to_user_id == user_id).order_by(NotificationModel.created_at.desc()))
         result = await db.execute(query)
         return result.scalars().all()
+
+    @staticmethod
+    async def get_my_sent_notifications(user_id: int, db: AsyncSession):
+        query = (select(NotificationModel).where(NotificationModel.sender_id == user_id).order_by(NotificationModel.created_at.desc()))
+        result = await db.execute(query)
+        return result.scalars().all()
+
+    @staticmethod
+    async def get_my_incoming_notification(not_id: int, client_id: int, db: AsyncSession) -> NotificationDataSchema:
+        query = (select(NotificationModel).where(NotificationModel.id == not_id, NotificationModel.to_user_id == client_id))
+        result = await db.execute(query)
+        return result.scalar()
+
+    @staticmethod
+    async def get_my_sent_notification(not_id: int, client_id: int, db: AsyncSession) -> NotificationDataSchema:
+        query = (select(NotificationModel).where(NotificationModel.id == not_id, NotificationModel.sender_id == client_id))
+        result = await db.execute(query)
+        return result.scalar()

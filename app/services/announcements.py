@@ -53,7 +53,7 @@ class AnnouncementService:
         if filters.name:
             query = query.where(AnnouncementModel.name.ilike(f"%{filters.name}%"))
         if filters.type:
-            query = query.where(AnnouncementModel.name == filters.name)
+            query = query.where(AnnouncementModel.type == filters.type)
         if filters.min_price:
             query = query.where(AnnouncementModel.price >= filters.min_price)
         if filters.max_price:
@@ -62,7 +62,12 @@ class AnnouncementService:
         result = await db.execute(query)
         return result.scalars().all()
 
-
+    @staticmethod
+    async def get_my_announcement(user_id: int, anc_id: int, status: StatusEnum, db: AsyncSession):
+        query = select(AnnouncementModel).where(AnnouncementModel.id == anc_id, AnnouncementModel.user_id == user_id, AnnouncementModel.status == status)
+        result = await db.execute(query)
+        return result.scalar()
+    
     @staticmethod
     async def delete_announcement(id: int, db: AsyncSession) -> bool:
         query = update(AnnouncementModel).where(AnnouncementModel.id == id, AnnouncementModel.status == StatusEnum.ACTIVE).values(status=StatusEnum.ARCHIVED)

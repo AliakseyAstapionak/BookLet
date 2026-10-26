@@ -2,13 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from utils import verify_password, hash_password
 from schemas import (ChangePasswordSchema, CreateAnnouncementSchema, 
-                    AnnouncementResponseSchema, MyAnnouncementFiltersSchema, Change2FASchema,
-                    MyNotificationsResponseSchema, MyBookingsResponseSchema)
-from services import UserService, AnnouncementService, NotificationService, BookingService, BookingStatus
+                    AnnouncementsResponseSchema, MyAnnouncementFiltersSchema, Change2FASchema,
+                    MyNotificationsResponseSchema, MyBookingsResponseSchema, NotificationResponseSchema,
+                    AnnouncementResponseSchema)
+from services import UserService, AnnouncementService, NotificationService, BookingService, BookingStatus, NotificationService
 from core import get_db
 from utils import get_current_user
 from typing import Annotated, Optional
-
 
 router = APIRouter(prefix='/BookLet', tags=['Функции пользователя'])
 
@@ -30,7 +30,7 @@ async def change_2fa(data: Change2FASchema, request: Request, db=Depends(get_db)
 
 @router.post('/account/settings/security/change_password')
 async def change_password(data: ChangePasswordSchema, request: Request, db=Depends(get_db), current_data=Depends(get_current_user)):
-    if not await check_password(data.password, current_data, db):
+    if not await check_password(data, current_data, db):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Неверный пароль') 
     new_hash_password = await hash_password(data.new_password)
     result = await UserService.change_password(user_id=current_data['uid'], new_hash_password=new_hash_password, db=db)
@@ -39,10 +39,35 @@ async def change_password(data: ChangePasswordSchema, request: Request, db=Depen
     return {'success': True, 'msg': 'Пароль успешно изменен'}
 
 @router.get('/my_notifications', response_model=MyNotificationsResponseSchema)
-async def get_my_notifications(request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
-    notifications = await NotificationService.get_my_notifications(user_id=current_user['uid'], db=db)
+async def get_my_all_notifications(request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
+    notifications = await NotificationService.get_my_all_notifications(user_id=current_user['uid'], db=db)
     return {'notifications': notifications}
 
+@router.get('/my_notifications/incoming', response_model=MyNotificationsResponseSchema)
+async def get_my_incoming_notifications(request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
+    notifications = await NotificationService.get_my_encoming_notifications(user_id=current_user['uid'], db=db)
+    return {'notifications': notifications}
+
+@router.get('/my_notifications/incoming/{not_id}', response_model=NotificationResponseSchema)
+async def get_incoming_notification_data(not_id: int, db=Depends(get_db), current_user=Depends(get_current_user)):
+    client_id = current_user['uid']
+    notification = await NotificationService.get_my_incoming_notification(not_id=not_id, client_id=client_id, db=db)
+    if not notification:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Входящее уведомление не найдено')
+    return {'notification': notification}
+
+@router.get('/my_notifications/sent', response_model=MyNotificationsResponseSchema)
+async def get_my_sent_notifications(request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
+    notifications = await NotificationService.get_my_sent_notifications(user_id=current_user['uid'], db=db)
+    return {'notifications': notifications}
+
+@router.get('/my_notifications/sent/{not_id}', response_model=NotificationResponseSchema)
+async def get_sent_notification_data(not_id: int, db=Depends(get_db), current_user=Depends(get_current_user)):
+    client_id = current_user['uid']
+    notification = await NotificationService.get_my_sent_notification(not_id=not_id, client_id=client_id, db=db)
+    if not notification:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Отправленное уведомление не найдено')
+    return {'notification': notification}
 
 @router.post('/my_announcements/create')
 async def create_announcement(anc: CreateAnnouncementSchema, db=Depends(get_db), current_data=Depends(get_current_user)):
@@ -52,34 +77,23 @@ async def create_announcement(anc: CreateAnnouncementSchema, db=Depends(get_db),
     return {'success': True, 'new_announcement': new_announcement}
 
 #TODO добавить фильтры 
-@router.get('/my_announcements/active', response_model=AnnouncementResponseSchema, )
-async def my_anniouncemets(filters: Annotated[MyAnnouncementFiltersSchema, Query()], request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
+@router.get('/my_announcements/active', response_model=AnnouncementsResponseSchema, )
+async def my_activeannouncemets(filters: Annotated[MyAnnouncementFiltersSchema, Query()], request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
     user_id = current_user['uid']
     announcements = await AnnouncementService.get_my_announcements(user_id=user_id, status='active', filters=filters,  db=db)
     return {'announcements': announcements}
 
-@router.get('/my_announcements/archived', response_model=AnnouncementResponseSchema, )
-async def my_anniouncemets(filters: Annotated[MyAnnouncementFiltersSchema, Query()], request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
+@router.get('/my_announcements/active/{anc_id}', response_model=AnnouncementResponseSchema)
+async def my_active_announcemet(anc_id: int, db=Depends(get_db), current_user=Depends(get_current_user)):
     user_id = current_user['uid']
-    announcements = await AnnouncementService.get_my_announcements(user_id=user_id, status='archived', filters=filters,  db=db)
-    return {'announcements': announcements}
-
-#TODO подумать может можно сделать бронирование также как и лайки
-@router.get('/my_announcements/booked', response_model=AnnouncementResponseSchema, )
-async def my_anniouncemets(filters: Annotated[MyAnnouncementFiltersSchema, Query()], request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
-    user_id = current_user['uid']
-    announcements = await AnnouncementService.get_my_announcements(user_id=user_id, status='booked', filters=filters,  db=db)
-    return {'announcements': announcements}
-
-@router.get('/my_favourites')
-async def my_favourites(request: Request, current_data=Depends(get_current_user), db=Depends(get_db)):
-    announcements = await UserService.get_liked_user_announcements(uid=current_data['uid'], db=db)
-    return {'announcements': announcements, 'total': len(announcements)}
-
+    announcement = await AnnouncementService.get_my_announcement(status='active', user_id=user_id, anc_id=anc_id, db=db)
+    if not announcement:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Объявление не найдено')
+    return {'announcement': announcement}
 
 #TODO подумать а можно ли удалять вообщще забронированные(пока что нельзя)
 @router.post('/my_announcements/{anc_id}/archive')
-async def delete_annoncement(anc_id: int, request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
+async def delete_annoncement(anc_id: int, db=Depends(get_db), current_user=Depends(get_current_user)):
     user_id = current_user['uid']
     anc_user = await AnnouncementService.get_announcement_user(id=anc_id, db=db)
     if anc_user is None:
@@ -90,6 +104,44 @@ async def delete_annoncement(anc_id: int, request: Request, db=Depends(get_db), 
         raise HTTPException(status.HTTP_409_CONFLICT,
                             detail='Нельзя удалить забронированное или уже архивированное объявление')
     return {'success': True, 'msg': 'Объявление занесено в архив'}
+
+
+@router.get('/my_announcements/archived', response_model=AnnouncementsResponseSchema, )
+async def my_archive_dannouncemets(filters: Annotated[MyAnnouncementFiltersSchema, Query()], request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
+    user_id = current_user['uid']
+    announcements = await AnnouncementService.get_my_announcements(user_id=user_id, status='archived', filters=filters,  db=db)
+    return {'announcements': announcements}
+
+
+@router.get('/my_announcements/archived/{anc_id}', response_model=AnnouncementResponseSchema)
+async def my_active_announcemet(anc_id: int, db=Depends(get_db), current_user=Depends(get_current_user)):
+    user_id = current_user['uid']
+    announcement = await AnnouncementService.get_my_announcement(status='archived', user_id=user_id, anc_id=anc_id, db=db)
+    if not announcement:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Объявление не найдено')
+    return {'announcement': announcement}
+
+#TODO подумать может можно сделать бронирование также как и лайки
+@router.get('/my_announcements/booked', response_model=AnnouncementsResponseSchema, )
+async def my_booked_announcemets(filters: Annotated[MyAnnouncementFiltersSchema, Query()], request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
+    user_id = current_user['uid']
+    announcements = await AnnouncementService.get_my_announcements(user_id=user_id, status='booked', filters=filters,  db=db)
+    return {'announcements': announcements}
+
+@router.get('/my_announcements/booked/{anc_id}', response_model=AnnouncementResponseSchema)
+async def my_active_announcemet(anc_id: int, db=Depends(get_db), current_user=Depends(get_current_user)):
+    user_id = current_user['uid']
+    announcement = await AnnouncementService.get_my_announcement(status='booked', user_id=user_id, anc_id=anc_id, db=db)
+    if not announcement:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Объявление не найдено')
+    return {'announcement': announcement}
+
+
+@router.get('/my_favourites')
+async def my_favourites(current_data=Depends(get_current_user), db=Depends(get_db)):
+    announcements = await UserService.get_liked_user_announcements(uid=current_data['uid'], db=db)
+    return {'announcements': announcements, 'total': len(announcements)}
+
 
 @router.get('/my_bookings', response_model=MyBookingsResponseSchema)
 async def get_my_bookings(status_filter: Optional[BookingStatus] = Query(default=None, alias='status'), limit: int = Query(default=20, ge=1, le=150),

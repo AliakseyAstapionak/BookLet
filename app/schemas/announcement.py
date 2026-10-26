@@ -30,6 +30,8 @@ class AnnouncementOut(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-
 class AnnouncementResponseSchema(BaseModel):
+    announcement: AnnouncementOut
+
+class AnnouncementsResponseSchema(BaseModel):
     announcements: list[AnnouncementOut]
