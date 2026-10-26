@@ -1,7 +1,7 @@
 from typing import Literal, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
-from models import AnnouncementModel, StatusEnum, UserModel
+from models import AnnouncementModel, StatusEnum, UserModel, user_liked_announcements
 from schemas import AnnouncementFiltersSchema, AnnouncementResponseSchema, SortEnum, MyAnnouncementFiltersSchema
 
 SORT_MAP = {
@@ -61,6 +61,24 @@ class AnnouncementService:
         query = query.order_by(*SORT_MAP[filters.sort]).limit(filters.limit).offset(filters.offset)
         result = await db.execute(query)
         return result.scalars().all()
+
+    
+    @staticmethod
+    async def get_liked_user_announcements(filters: MyAnnouncementFiltersSchema, uid: int, db: AsyncSession):
+        query = (select(AnnouncementModel).join(user_liked_announcements, AnnouncementModel.id == user_liked_announcements.c.announcement_id
+                ).where(user_liked_announcements.c.user_id == uid))
+        if filters.name:
+            query = query.where(AnnouncementModel.name.ilike(f"%{filters.name}%"))
+        if filters.type:
+            query = query.where(AnnouncementModel.type == filters.type)
+        if filters.min_price:
+            query = query.where(AnnouncementModel.price >= filters.min_price)
+        if filters.max_price:
+            query = query.where(AnnouncementModel.price <= filters.max_price)
+        query = query.order_by(*SORT_MAP[filters.sort]).limit(filters.limit).offset(filters.offset)
+        result = await db.execute(query)
+        return result.scalars().all()
+
 
     @staticmethod
     async def get_my_announcement(user_id: int, anc_id: int, status: StatusEnum, db: AsyncSession):

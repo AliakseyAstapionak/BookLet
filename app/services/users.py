@@ -102,11 +102,4 @@ class UserService:
             "is_liked": is_liked
         }
 
-    @staticmethod
-    async def get_liked_user_announcements(uid: int, db: AsyncSession):
-        stmt = (select(AnnouncementModel).join(user_liked_announcements, AnnouncementModel.id == user_liked_announcements.c.announcement_id
-                ).where(user_liked_announcements.c.user_id == uid))
-        result = await db.execute(stmt)
-        return result.scalars().all()
-
         

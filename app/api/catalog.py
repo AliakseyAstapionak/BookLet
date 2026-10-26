@@ -24,17 +24,17 @@ async def announcement(anc_id: int, db=Depends(get_db)):
     return {'success': True, 'announcement': result}
 
 
-#TODO сделать проверку на то чтобы нелья было лакать свои обьявления
 @router.post('/catalog/{anc_id}/like')
-async def like_anc(anc_id: int, request: Request, db: AsyncSession =Depends(get_db), current_data=Depends(get_current_user)):
+async def like_anc(anc_id: int, request: Request, db: AsyncSession=Depends(get_db), current_data=Depends(get_current_user)):
     announcement = await AnnouncementService.get_announcement(id=anc_id, db=db)
     if not announcement:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Объявление не найдено")
+    if announcement.user_id == current_data['uid']:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Нельзя лайкать свои сообщения')
     result = await UserService.like_announcement(uid=current_data['uid'], anc_id=anc_id, db=db)
     return result
 
-#TODO подумать на каких условиях продавец может отменить бронь
-#TODO подумать как лучще сделать проверку на второй раз подачи заявки, то есть что будет если продавец окажет бронировае, то тогда второй раз не сможет он отправить запрос на бронирование.
+#TODO подумать на каких условиях продавец может отменить бронь и стоит ли вообще это делать(пока что не реализовано)
 @router.post('/catalog/{anc_id}/book')
 async def book_announcement(anc_id: int, request: Request, db: AsyncSession=Depends(get_db), current_data=Depends(get_current_user)):
     client_name = current_data['username']

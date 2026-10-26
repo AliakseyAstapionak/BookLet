@@ -18,7 +18,6 @@ async def check_password(data: Change2FASchema, userdata: dict=Depends(get_curre
         return False
     return await verify_password(password=data.password ,hashed_password=hash_password)
 
-#TODO попросить пароль для подтверждения
 @router.post('/account/settings/security/2fa', response_model=None)
 async def change_2fa(data: Change2FASchema, request: Request, db=Depends(get_db), current_data=Depends(get_current_user), check_pass=Depends(check_password)):
     if not check_pass:
@@ -38,6 +37,8 @@ async def change_password(data: ChangePasswordSchema, request: Request, db=Depen
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Не удалось поменять пароль")
     return {'success': True, 'msg': 'Пароль успешно изменен'}
 
+
+#TODO добавить фильтры для всех видов my_notifications/*
 @router.get('/my_notifications', response_model=MyNotificationsResponseSchema)
 async def get_my_all_notifications(request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
     notifications = await NotificationService.get_my_all_notifications(user_id=current_user['uid'], db=db)
@@ -76,7 +77,6 @@ async def create_announcement(anc: CreateAnnouncementSchema, db=Depends(get_db),
                                                                     price=anc.price, description=anc.description, db=db)
     return {'success': True, 'new_announcement': new_announcement}
 
-#TODO добавить фильтры 
 @router.get('/my_announcements/active', response_model=AnnouncementsResponseSchema, )
 async def my_activeannouncemets(filters: Annotated[MyAnnouncementFiltersSchema, Query()], request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
     user_id = current_user['uid']
@@ -121,7 +121,6 @@ async def my_active_announcemet(anc_id: int, db=Depends(get_db), current_user=De
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Объявление не найдено')
     return {'announcement': announcement}
 
-#TODO подумать может можно сделать бронирование также как и лайки
 @router.get('/my_announcements/booked', response_model=AnnouncementsResponseSchema, )
 async def my_booked_announcemets(filters: Annotated[MyAnnouncementFiltersSchema, Query()], request: Request, db=Depends(get_db), current_user=Depends(get_current_user)):
     user_id = current_user['uid']
@@ -138,8 +137,8 @@ async def my_active_announcemet(anc_id: int, db=Depends(get_db), current_user=De
 
 
 @router.get('/my_favourites')
-async def my_favourites(current_data=Depends(get_current_user), db=Depends(get_db)):
-    announcements = await UserService.get_liked_user_announcements(uid=current_data['uid'], db=db)
+async def my_favourites(filters: Annotated[MyAnnouncementFiltersSchema, Query()], current_data=Depends(get_current_user), db=Depends(get_db)):
+    announcements = await AnnouncementService.get_liked_user_announcements(filters=filters, uid=current_data['uid'], db=db)
     return {'announcements': announcements, 'total': len(announcements)}
 
 
