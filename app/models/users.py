@@ -5,7 +5,7 @@ from datetime import datetime
 from core.database import Base
 from typing import List
 from models.tables import user_liked_announcements
-
+#TODO добавить какую нибуль связвнную таблицу с отщывами и рейтинг пользователя
 class UserModel(Base):
     __tablename__ = 'users' 
 

@@ -46,7 +46,6 @@ class AnnouncementService:
         return result.scalar()
 
 
-# TODO добавить фильтры и тп
     @staticmethod
     async def get_my_announcements(user_id: int, filters: MyAnnouncementFiltersSchema, status: Literal['active', 'archived', 'booked'], db: AsyncSession, limit: int = 20, offset: int = 0) -> AnnouncementResponseSchema :
         query = select(AnnouncementModel).where(AnnouncementModel.status == status, AnnouncementModel.user_id == user_id)

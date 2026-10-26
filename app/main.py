@@ -2,9 +2,8 @@ from fastapi import FastAPI
 from core import engine, Base, redis_client
 import uvicorn
 from contextlib import asynccontextmanager
-from api import auth_router, user_router, health_router, catalog_router
+from api import auth_router, me_router, user_router, health_router, catalog_router
 
-#TODO сделать при ббронировании сообщение не только продавцу но и самому клиенту чтобы он мог посмотреть типо истории
 #TODO подумать как обощить rpslimeter чтобы не переписывать его на каждую функцию
 #TODO Дополнительно можно запретить клиенту две записи на пересекающееся время у разных продавцов: такой же EXCLUDE, только по client_id
 """Критичное и серьёзное
@@ -48,6 +47,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(auth_router)
+app.include_router(me_router)
 app.include_router(user_router)
 app.include_router(health_router)
 app.include_router(catalog_router)

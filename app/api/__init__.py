@@ -1,4 +1,5 @@
 from .auth import router as auth_router
-from .users import router as user_router
+from .me import router as me_router
 from .health import router as health_router
 from .catalog import router as catalog_router
+from .users import router as user_router

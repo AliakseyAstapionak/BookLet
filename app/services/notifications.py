@@ -12,7 +12,7 @@ class NotificationService:
         await db.commit()
         return True
     
-#TODO подумать как сделать так чтобы выводило и имя пользователя
+#TODO подумать как сделать так чтобы выводило и имя пользователя(вообще оно и не надо потому что в тексте сообщений есть имя от кого отпралено)
 
     @staticmethod
     async def get_my_all_notifications(user_id: int, db: AsyncSession):
