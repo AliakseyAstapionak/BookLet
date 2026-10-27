@@ -1,6 +1,4 @@
-from pathlib import Path
 from fastapi import FastAPI
-
 from core import engine, Base, redis_client
 import uvicorn
 from contextlib import asynccontextmanager
@@ -37,6 +35,8 @@ redis_client.close() устарел, используй aclose().
 Начни с пунктов 1, 2, 4 и 7. Это быстро и убирает самое неприятное. Затем подтверждение email и rate limiting на forgot_password. Остальное можно делать по мере развития проекта.
 
 Если хочешь, могу показать конкретные исправления для любого из пунктов, например перенос пароля в тело запроса или версионирование токенов."""
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:

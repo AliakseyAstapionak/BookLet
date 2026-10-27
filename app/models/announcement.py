@@ -29,8 +29,8 @@ class AnnouncementModel(Base):
     duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=60, server_default='60')
     cancel_before_hours: Mapped[int] = mapped_column(Integer, nullable=False, default=24, server_default='24')
 
-
     user: Mapped["UserModel"] = relationship(back_populates="announcements")
+    settings: Mapped['UserSettingsModel'] = relationship(back_populates='user')
     liked_by_users: Mapped[List["UserModel"]] = relationship(
         secondary=user_liked_announcements,
         back_populates="liked_announcements"

@@ -15,8 +15,6 @@ _NOT_FOUND = {404: {'description': 'Объявление не найдено'}}
 _UNAUTHORIZED = {401: {'description': 'Не авторизован'}}
 
 
-# ---------- Создание ----------
-
 @router.post(
     '/create',
     summary='Создать объявление',
@@ -28,8 +26,6 @@ async def create_announcement(anc: CreateAnnouncementSchema, db=Depends(get_db),
                                                                     price=anc.price, description=anc.description, db=db)
     return {'success': True, 'new_announcement': new_announcement}
 
-
-# ---------- Активные ----------
 
 @router.get(
     '/active',
@@ -58,8 +54,6 @@ async def my_active_announcement(anc_id: int, db=Depends(get_db), current_user=D
     return {'announcement': announcement}
 
 
-# ---------- Забронированные ----------
-
 @router.get(
     '/booked',
     response_model=AnnouncementsResponseSchema,
@@ -86,8 +80,6 @@ async def my_booked_announcement(anc_id: int, db=Depends(get_db), current_user=D
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Объявление не найдено')
     return {'announcement': announcement}
 
-
-# ---------- Архив ----------
 
 @router.get(
     '/archived',

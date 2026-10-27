@@ -43,7 +43,6 @@ async def announcement(anc_id: int, db=Depends(get_db)):
     return {'success': True, 'announcement': result}
 
 
-# ---------- Действия (нужна авторизация) ----------
 
 @router.post(
     '/catalog/{anc_id}/like',
