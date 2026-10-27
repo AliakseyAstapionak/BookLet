@@ -21,16 +21,17 @@ router = APIRouter(prefix='/BookLet', tags=[TAG_LOGIN])
     responses={400: {'description': 'Неверный логин или пароль / аккаунт неактивен'},
                429: {'description': 'Слишком много неудачных попыток входа'}},
 )
-async def login(user: UserLoginSchema, background_tasks: BackgroundTasks, response: Response, request: Request, db=Depends(get_db),):
+
+async def login(user: UserLoginSchema, background_tasks: BackgroundTasks, response: Response, request: Request, db=Depends(get_db)):
     fail_key = await check_limit('login', request)
-    data = await UserService.get_user_by_username(username=user.username, db=db)
+    data = await UserService.get_user_by_username(username=user.username, db=db, with_settings=True)
     if not (data and await verify_password(user.password, data.hashed_pwd)):
         await register_fail(fail_key)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Неверный логин или пароль')
     if data.is_active is False:
         await register_fail(fail_key)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Аккаунт неактивен')
-    if not data._2fa:
+    if not data.settings.two_factor_enabled:
         await set_auth_cookie(response=response, token=create_jwt(uid=data.id, username=data.username))
         return {'success': True, 'msg': 'Вход успешно выполнен'}
     else:

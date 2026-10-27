@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, exists, update, not_, select, insert, delete
-from models import UserModel, AnnouncementModel
+from sqlalchemy.orm import selectinload
+from models import UserModel, AnnouncementModel, UserSettingsModel
 from models.tables import user_liked_announcements
 
 from typing import Optional
@@ -26,14 +27,18 @@ class UserService:
         return bool(result.scalar())
 
     @staticmethod
-    async def get_user_by_username(username: str, db: AsyncSession) -> Optional[UserModel]:
+    async def get_user_by_username(username: str, db: AsyncSession, with_settings: bool = False) -> Optional[UserModel]:
         query = select(UserModel).where(UserModel.username == username)
+        if with_settings:
+            query = query.options(selectinload(UserModel.settings))
         result = await db.execute(query)
         return result.scalar()
 
     @staticmethod
-    async def get_user_by_id(id: int, db: AsyncSession) -> Optional[UserModel]:
+    async def get_user_by_id(id: int, db: AsyncSession, with_settings: bool = False) -> Optional[UserModel]:
         query = select(UserModel).where(UserModel.id == id)
+        if with_settings:
+            query = query.options(selectinload(UserModel.settings))
         result = await db.execute(query)
         return result.scalar()
 
@@ -45,7 +50,7 @@ class UserService:
 
     @staticmethod
     async def create_user(username: str, email: str, hashed_pwd: str, db: AsyncSession) -> UserModel:
-        new_user = UserModel(username=username, email=email.lower(), hashed_pwd=hashed_pwd)
+        new_user = UserModel(username=username, email=email.lower(), hashed_pwd=hashed_pwd, settings=UserSettingsModel())
         db.add(new_user)
         await db.commit()
         await db.refresh(new_user)
@@ -62,7 +67,8 @@ class UserService:
 
     @staticmethod
     async def change_2fa(user_id: int, db: AsyncSession):
-        query = update(UserModel).where(UserModel.id == user_id).values(_2fa=not_(UserModel._2fa))
+        query = update(UserSettingsModel).where(UserSettingsModel.user_id == user_id).values(
+            two_factor_enabled=not_(UserSettingsModel.two_factor_enabled))
         result = await db.execute(query)
         await db.commit()
         return result.rowcount > 0

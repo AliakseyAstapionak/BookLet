@@ -15,9 +15,11 @@ router = APIRouter(prefix='/BookLet/user/{user_id}', tags=[TAG_USER_PROFILES])
     responses={404: {'description': 'Аккаунт не найден'}},
 )
 async def get_profile(user_id: int, db=Depends(get_db)):
-    data = await UserService.get_user_by_id(id=user_id, db=db)
+    data = await UserService.get_user_by_id(id=user_id, with_settings=True, db=db)
     if not data or data.is_active == False:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Аккаунт не найден')
+    if not data.settings.show_email:
+        data.email = 'Недоступен к просмотру'
     return {'user': data}
 
 

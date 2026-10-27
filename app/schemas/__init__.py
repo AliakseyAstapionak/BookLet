@@ -4,4 +4,4 @@ from .announcement import CreateAnnouncementSchema, AnnouncementsResponseSchema,
 from .filters import AnnouncementFiltersSchema, SortEnum, MyAnnouncementFiltersSchema
 from .notifications import MyNotificationsResponseSchema, NotificationDataSchema, NotificationResponseSchema
 from .bookings import MyBookingsResponseSchema
-from .users import AccountDataResponseSchema
+from .users import MyAccountDataResponseSchema, AccountDataResponseSchema
