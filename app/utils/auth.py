@@ -59,6 +59,21 @@ async def can_send_registration_code(username, email, hashed_pwd, background_tas
     background_tasks.add_task(EmailService.send_registration_code, email_to=email, code=code)
     return True 
 
+async def can_resend_registration_code(email: str, background_tasks: BackgroundTasks) -> None:
+    key = f'reg_code:{email}'
+    cd_key = f'reg_cd:{email}'
+    if not await redis_client.exists(key):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail='Данные регистрации истекли, зарегистрируйтесь заново')
+    if not await redis_client.set(cd_key, 1, nx=True, ex=REG_COOLDOWN):
+        ttl = await redis_client.ttl(cd_key)
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, detail=f'Повторить можно через {max(ttl, 1)} сек.')
+    code = f'{random.randint(100000, 999999)}'
+    async with redis_client.pipeline(transaction=True) as pipe:
+        pipe.hset(key, mapping={'hashed_code': _hash_code(code), 'attempts': REG_ATTEMPTS})
+        pipe.expire(key, REG_TTL)
+        await pipe.execute()
+    background_tasks.add_task(EmailService.send_registration_code, email_to=email, code=code)
+
 async def register_fail(key: str):
     n = await redis_client.incr(key)
     if n == 1:

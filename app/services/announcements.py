@@ -22,7 +22,7 @@ class AnnouncementService:
         return new_anc 
 
     @staticmethod
-    async def get_announcement(id: int, db: AsyncSession) -> AnnouncementModel:
+    async def get_announcement(id: int,  db: AsyncSession) -> AnnouncementModel:
         query = select(AnnouncementModel).where(AnnouncementModel.id == id) 
         result = await db.execute(query)
         return result.scalar()
@@ -32,6 +32,11 @@ class AnnouncementService:
         query = select(AnnouncementModel.user_id).where(AnnouncementModel.id == id)
         result = await db.execute(query)
         return result.scalar()
+    @staticmethod
+    async def get_user_announcements(user_id: int, db: AsyncSession) -> AnnouncementResponseSchema :
+        query = select(AnnouncementModel).where(AnnouncementModel.status == 'active', AnnouncementModel.user_id == user_id)
+        result = await db.execute(query)
+        return result.scalars().all()
     
     @staticmethod
     async def existing_anouncement(id: int, db: AsyncSession) -> bool:

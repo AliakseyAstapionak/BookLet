@@ -5,7 +5,7 @@ from services.users import UserService
 from core import get_db, redis_client
 from utils import (hash_password, verify_password, create_jwt, set_auth_cookie, set_2fa_cookie, create_2fa,
 can_send_2fa_code, check_limit, _hash_code, check_2fa_token, create_reset_pwd_token, check_reset_pwd_token,
-_fp_password, create_reg_token, set_reg_cookie, check_reg_token, register_fail, can_send_registration_code)
+_fp_password, create_reg_token, set_reg_cookie, check_reg_token, register_fail, can_send_registration_code, can_resend_registration_code)
 import hmac
 
 
@@ -26,7 +26,6 @@ async def registration(newuser: UserRegistrationSchema, request: Request, backgr
         return {'success': True, 'msg': 'Код уже отправлен, проверьте почту'}
     return {'success': True, 'msg': 'Подтвердите регистрацию. Инструкция указана на данную почту'}
 
-#TODO сделать переотправку кода для подтверждения емаила
 @router.post('/registration/verify_email', response_model=UserPublicActionSchema, status_code=status.HTTP_201_CREATED)
 async def verify_email(usercode: VerifyCodeSchema, request: Request, response: Response, db=Depends(get_db)):
     data = check_reg_token(request)
@@ -46,8 +45,11 @@ async def verify_email(usercode: VerifyCodeSchema, request: Request, response: R
     new_user = await UserService.create_user(username=newuser['username'], email=newuser['email'], hashed_pwd=newuser['hashed_pwd'], db=db)
     return {'success': True, 'user': new_user}
 
-# @router.post('/registration/verify_email/resend_code')
-
+@router.post('/registration/verify_email/resend_code')
+async def resend_email_code(request: Request, background_tasks: BackgroundTasks):
+    data = check_reg_token(request)
+    await can_resend_registration_code(email=data['email'], background_tasks=background_tasks)
+    return {'success': True, 'msg': 'Код отправлен повторно'}
 
 @router.post('/login')
 async def login(user: UserLoginSchema, background_tasks: BackgroundTasks, response: Response, request: Request, db=Depends(get_db),):
