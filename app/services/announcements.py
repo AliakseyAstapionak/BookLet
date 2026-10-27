@@ -14,12 +14,14 @@ SORT_MAP = {
 class AnnouncementService:
     
     @staticmethod
-    async def create_announcement(user_id: str, name: str, status: Literal['active', 'archived', 'booked'], type: str, price: int, db: AsyncSession, description: str | None = None):
-        new_anc = AnnouncementModel(user_id=user_id, name=name, status=status, type=type, price=price, description=description)
+    async def create_announcement(user_id: int, name: str, status: Literal['active', 'archived', 'booked'], type: str, price: int, db: AsyncSession,
+                                description: str | None = None, duration_minutes: int = 60, cancel_before_hours: int = 24):
+        new_anc = AnnouncementModel(user_id=user_id, name=name, status=status, type=type, price=price, description=description,
+                                    duration_minutes=duration_minutes, cancel_before_hours=cancel_before_hours)
         db.add(new_anc)
         await db.commit()
         await db.refresh(new_anc)
-        return new_anc 
+        return new_anc
 
     @staticmethod
     async def get_announcement(id: int,  db: AsyncSession) -> AnnouncementModel:
@@ -32,6 +34,7 @@ class AnnouncementService:
         query = select(AnnouncementModel.user_id).where(AnnouncementModel.id == id)
         result = await db.execute(query)
         return result.scalar()
+    
     @staticmethod
     async def get_user_announcements(user_id: int, db: AsyncSession) -> AnnouncementResponseSchema :
         query = select(AnnouncementModel).where(AnnouncementModel.status == 'active', AnnouncementModel.user_id == user_id)
@@ -62,6 +65,11 @@ class AnnouncementService:
             query = query.where(AnnouncementModel.price >= filters.min_price)
         if filters.max_price:
             query = query.where(AnnouncementModel.price <= filters.max_price)
+        if filters.min_price is not None:
+            query = query.where(AnnouncementModel.price >= filters.min_price)
+        if filters.max_price is not None:
+            query = query.where(AnnouncementModel.price <= filters.max_price)
+    
         query = query.order_by(*SORT_MAP[filters.sort]).limit(filters.limit).offset(filters.offset)
         result = await db.execute(query)
         return result.scalars().all()

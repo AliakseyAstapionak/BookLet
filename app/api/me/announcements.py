@@ -23,9 +23,9 @@ _UNAUTHORIZED = {401: {'description': 'Не авторизован'}}
 async def create_announcement(anc: CreateAnnouncementSchema, db=Depends(get_db), current_data=Depends(get_current_user)):
     user_id = current_data['uid']
     new_announcement = await AnnouncementService.create_announcement(user_id=current_data['uid'], name=anc.name, status=anc.status, type=anc.type,
-                                                                    price=anc.price, description=anc.description, db=db)
+                                                                    price=anc.price, description=anc.description,
+                                                                    duration_minutes=anc.duration_minutes, cancel_before_hours=anc.cancel_before_hours, db=db)
     return {'success': True, 'new_announcement': new_announcement}
-
 
 @router.get(
     '/active',

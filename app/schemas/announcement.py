@@ -27,9 +27,11 @@ class AnnouncementOut(BaseModel):
     description: str | None
     price: int
     status: str
+    duration_minutes: int
+    cancel_before_hours: int
     created_at: datetime
     updated_at: datetime
-
+    
 class AnnouncementResponseSchema(BaseModel):
     announcement: AnnouncementOut
 

@@ -20,4 +20,4 @@ router = APIRouter(prefix='/BookLet/me', tags=[TAG_FAVOURITES])
 )
 async def my_favourites(filters: Annotated[MyAnnouncementFiltersSchema, Query()], current_data=Depends(get_current_user), db=Depends(get_db)):
     announcements = await AnnouncementService.get_liked_user_announcements(filters=filters, uid=current_data['uid'], db=db)
-    return {'announcements': announcements, 'total': len(announcements)}
+    return {'announcements': announcements}
