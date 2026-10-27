@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from core import engine, Base, redis_client
 import uvicorn
 from contextlib import asynccontextmanager
-from api import auth_router, me_router, user_router, health_router, catalog_router
+from api import routers, openapi_tags
 
 #TODO подумать как обощить rpslimeter чтобы не переписывать его на каждую функцию
 #TODO Дополнительно можно запретить клиенту две записи на пересекающееся время у разных продавцов: такой же EXCLUDE, только по client_id
@@ -47,12 +47,18 @@ async def lifespan(app: FastAPI):
     print('Приложение остановлено!')
 
 
-app = FastAPI(lifespan=lifespan)
-app.include_router(auth_router)
-app.include_router(me_router)
-app.include_router(user_router)
-app.include_router(health_router)
-app.include_router(catalog_router)
+app = FastAPI(
+    title='BookLet API',
+    description='API сервиса бронирования услуг BookLet.\n\n'
+                'Авторизация — через cookie `access_token`, которую ставит `/BookLet/login`. '
+                'Ручки, помеченные в описании группы «Требуется авторизация», без неё вернут 401.',
+    openapi_tags=openapi_tags,
+    lifespan=lifespan,
+)
+
+# Порядок роутеров = порядок групп в документации (см. api/__init__.py и api/tags.py)
+for router in routers:
+    app.include_router(router)
 
 #TODO вот когда я запросил заявку на бронирование нужно сделать так чтобы было поле с мои заявки и там они отображались логику надо подумать, нужно сделать чтобы когда продавец отвечает на заявку приходило уведомление и тп, в общем еще нужно подумать над этим , для этого нужно добавить модель заявок и как то наверно переделать наш notifications, или добавить туда что то типо тип; заявка или что то типо такого
 
