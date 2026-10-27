@@ -74,6 +74,14 @@ class UserService:
         return result.rowcount > 0
 
     @staticmethod
+    async def change_show_email(user_id: int, db: AsyncSession):
+        query = update(UserSettingsModel).where(UserSettingsModel.user_id == user_id).values(
+            show_email=not_(UserSettingsModel.show_email))
+        result = await db.execute(query)
+        await db.commit()
+        return result.rowcount > 0
+
+    @staticmethod
     async def get_password_by_username(username: str, db: AsyncSession) -> Optional[str]:
         query = select(UserModel.hashed_pwd).where(UserModel.username == username)
         result = await db.execute(query)

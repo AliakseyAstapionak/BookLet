@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from utils import verify_password, hash_password, get_current_user
-from schemas import ChangePasswordSchema, Change2FASchema
+from schemas import ChangePasswordSchema, Change2FASchema, ChangeShowEmailSchema
 from services import UserService
 from core import get_db
 from ..tags import TAG_SECURITY
@@ -33,6 +33,25 @@ async def change_2fa(data: Change2FASchema, request: Request, db=Depends(get_db)
     if not result:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Не удалось поменять значение 2fa')
     return {'success': True, 'msg': 'Данные изменены успешно'}
+
+
+@router.post(
+    '/show_email',
+    response_model=None,
+    summary='Включить или выключить показ email',
+    description='Переключает показ вышей почты другим пользователям на противоположное значение. '
+                'Требуется текущий пароль.',
+    responses={400: {'description': 'Неверный пароль'},
+               401: {'description': 'Не авторизован'}},
+)
+async def change_show_email(data: Change2FASchema, request: Request, db=Depends(get_db), current_data=Depends(get_current_user), check_pass=Depends(check_password)):
+    if not check_pass:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Неверный пароль')
+    result = await UserService.change_show_email(user_id=current_data['uid'], db=db)
+    if not result:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Не удалось поменять значение показа почты')
+    return {'success': True, 'msg': 'Данные изменены успешно'}
+
 
 
 @router.post(

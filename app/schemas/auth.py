@@ -86,6 +86,9 @@ class VerifyCodeSchema(BaseModel):
 class Change2FASchema(BaseModel):
     password: str
 
+class ChangeShowEmailSchema(BaseModel):
+    password: str
+
 
 
 
