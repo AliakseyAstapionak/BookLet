@@ -19,3 +19,6 @@ class MyBookingOut(BaseModel):
 class MyBookingsResponseSchema(BaseModel):
     bookings: list[MyBookingOut]
     total: int
+
+class BookingsResponseSchema(MyBookingsResponseSchema):
+    pass

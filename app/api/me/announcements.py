@@ -1,10 +1,11 @@
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-
+from sqlalchemy.ext.asyncio import AsyncSession
+from models import BookingStatus
 from schemas import (CreateAnnouncementSchema, AnnouncementsResponseSchema,
-                     AnnouncementResponseSchema, MyAnnouncementFiltersSchema)
-from services import AnnouncementService
+                     AnnouncementResponseSchema, MyAnnouncementFiltersSchema, BookingsResponseSchema)
+from services import AnnouncementService, BookingService
 from core import get_db
 from utils import get_current_user
 from ..tags import TAG_MY_ANNOUNCEMENTS
@@ -56,29 +57,37 @@ async def my_active_announcement(anc_id: int, db=Depends(get_db), current_user=D
 
 @router.get(
     '/booked',
-    response_model=AnnouncementsResponseSchema,
+    response_model=BookingsResponseSchema,
     summary='Список моих забронированных объявлений',
     description='Объявления, которые у меня как у продавца забронировали клиенты.',
     responses=_UNAUTHORIZED,
 )
-async def my_booked_announcements(filters: Annotated[MyAnnouncementFiltersSchema, Query()], db=Depends(get_db), current_user=Depends(get_current_user)):
-    user_id = current_user['uid']
-    announcements = await AnnouncementService.get_my_announcements(user_id=user_id, status='booked', filters=filters, db=db)
-    return {'announcements': announcements}
+async def get_my_bookings(status_filter: Optional[BookingStatus] = Query(default=None, alias='status'), limit: int = Query(default=20, ge=1, le=150),
+                          offset: int = Query(default=0, ge=0),
+                          db: AsyncSession = Depends(get_db),
+                          current_user=Depends(get_current_user)):
+    return await BookingService.get_my_bookings(status='as_provider', user_id=current_user['uid'], status_filter=status_filter, limit=limit, offset=offset, db=db)
 
 
-@router.get(
-    '/booked/{anc_id}',
-    response_model=AnnouncementResponseSchema,
-    summary='Моё забронированное объявление по id',
-    responses={**_UNAUTHORIZED, **_NOT_FOUND},
-)
-async def my_booked_announcement(anc_id: int, db=Depends(get_db), current_user=Depends(get_current_user)):
-    user_id = current_user['uid']
-    announcement = await AnnouncementService.get_my_announcement(status='booked', user_id=user_id, anc_id=anc_id, db=db)
-    if not announcement:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Объявление не найдено')
-    return {'announcement': announcement}
+
+# async def my_booked_announcements(filters: Annotated[MyAnnouncementFiltersSchema, Query()], db=Depends(get_db), current_user=Depends(get_current_user)):
+#     user_id = current_user['uid']
+#     announcements = await AnnouncementService.get_my_announcements(user_id=user_id, status='booked', filters=filters, db=db)
+#     return {'announcements': announcements}
+
+
+# @router.get(
+#     '/booked/{anc_id}',
+#     response_model=AnnouncementResponseSchema,
+#     summary='Моё забронированное объявление по id',
+#     responses={**_UNAUTHORIZED, **_NOT_FOUND},
+# )
+# async def my_booked_announcement(anc_id: int, db=Depends(get_db), current_user=Depends(get_current_user)):
+#     user_id = current_user['uid']
+#     announcement = await AnnouncementService.get_my_announcement(status='booked', user_id=user_id, anc_id=anc_id, db=db)
+#     if not announcement:
+#         raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Объявление не найдено')
+#     return {'announcement': announcement}
 
 
 @router.get(
@@ -99,6 +108,7 @@ async def my_archived_announcements(filters: Annotated[MyAnnouncementFiltersSche
     summary='Моё архивное объявление по id',
     responses={**_UNAUTHORIZED, **_NOT_FOUND},
 )
+
 async def my_archived_announcement(anc_id: int, db=Depends(get_db), current_user=Depends(get_current_user)):
     user_id = current_user['uid']
     announcement = await AnnouncementService.get_my_announcement(status='archived', user_id=user_id, anc_id=anc_id, db=db)

@@ -3,7 +3,7 @@ from sqlalchemy import select, func, update
 from fastapi import HTTPException, status
 from models import UserModel, BookingModel, AnnouncementModel, BookingStatus, StatusEnum, NotificationModel
 from services.announcements import AnnouncementService
-from typing import Dict
+from typing import Dict, Literal
 
 class BookingService:
 
@@ -36,9 +36,14 @@ class BookingService:
 
 
     @staticmethod
-    async def get_my_bookings_as_client(client_id: int, status_filter: BookingStatus | None,
+    async def get_my_bookings(status: Literal['as_client', 'as_provider'],user_id: int, status_filter: BookingStatus | None,
                             limit: int, offset: int, db: AsyncSession) -> dict:
-        conditions = [BookingModel.client_id == client_id]
+        if status == 'as_client':
+            conditions = [BookingModel.client_id == user_id]
+        elif status == 'as_provider':
+            conditions = [BookingModel.provider_id == user_id]
+        else: 
+            raise HTTPException(status_code=400, detail='Неверные данные в поиске бронирований')
         if status_filter:
             conditions.append(BookingModel.status == status_filter)
         total = (await db.execute(
@@ -55,6 +60,7 @@ class BookingService:
                 .limit(limit).offset(offset))
         rows = (await db.execute(query)).mappings().all()
         return {'bookings': [dict(r) for r in rows], 'total': total}
+
 
 
     @staticmethod

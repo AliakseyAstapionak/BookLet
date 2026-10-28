@@ -4,5 +4,5 @@ from .auth import (UserRegistrationSchema, UserPublicActionSchema, UserLoginSche
 from .announcement import CreateAnnouncementSchema, AnnouncementsResponseSchema, AnnouncementResponseSchema
 from .filters import AnnouncementFiltersSchema, SortEnum, MyAnnouncementFiltersSchema
 from .notifications import MyNotificationsResponseSchema, NotificationDataSchema, NotificationResponseSchema
-from .bookings import MyBookingsResponseSchema
+from .bookings import MyBookingsResponseSchema, BookingsResponseSchema
 from .users import MyAccountDataResponseSchema, AccountDataResponseSchema

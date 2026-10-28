@@ -14,7 +14,7 @@ SORT_MAP = {
 class AnnouncementService:
     
     @staticmethod
-    async def create_announcement(user_id: int, name: str, status: Literal['active', 'archived', 'booked'], type: str, price: int, db: AsyncSession,
+    async def create_announcement(user_id: int, name: str, status: Literal['active', 'archived'], type: str, price: int, db: AsyncSession,
                                 description: str | None = None, duration_minutes: int = 60, cancel_before_hours: int = 24):
         new_anc = AnnouncementModel(user_id=user_id, name=name, status=status, type=type, price=price, description=description,
                                     duration_minutes=duration_minutes, cancel_before_hours=cancel_before_hours)

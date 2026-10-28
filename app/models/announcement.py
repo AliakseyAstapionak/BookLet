@@ -10,7 +10,7 @@ from models.tables import user_liked_announcements
 class StatusEnum(str, enum.Enum):
     ACTIVE = 'active'
     ARCHIVED = 'archived'
-    BOOKED = 'booked'
+
 
 #TODO подумать над временем и бронированием 
 class AnnouncementModel(Base):

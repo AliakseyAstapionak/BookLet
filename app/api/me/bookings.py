@@ -24,7 +24,7 @@ async def get_my_bookings(status_filter: Optional[BookingStatus] = Query(default
                           offset: int = Query(default=0, ge=0),
                           db: AsyncSession = Depends(get_db),
                           current_user=Depends(get_current_user)):
-    return await BookingService.get_my_bookings_as_client(client_id=current_user['uid'], status_filter=status_filter, limit=limit, offset=offset, db=db)
+    return await BookingService.get_my_bookings(status='as_client', user_id=current_user['uid'], status_filter=status_filter, limit=limit, offset=offset, db=db)
 
 
 #TODO сказать что нельзя отменить бронь если уже за определенное время до начала услуги, если нет то бронь отменить нельзя или только по заявке
