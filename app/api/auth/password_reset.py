@@ -27,7 +27,7 @@ async def forgot_password(user: UserForgotPasswordSchema, background_tasks: Back
     reset_token = create_reset_pwd_token(uid=existing_user.id, hashed_pwd=existing_user.hashed_pwd)
     reset_link = f"http://BookLet/reset_password?reset_token={reset_token}"
     background_tasks.add_task(EmailService.send_reset_password_email, email_to=existing_user.email, reset_link=reset_link)
-    return {'success': True, "msg": f"Инструкция по сбросу пароля отправлена на ваш email: {existing_user.email}."}
+    return {'success': True, "msg": f"Инструкция по сбросу пароля отправлена на ваш email."}
 
 
 @router.post(

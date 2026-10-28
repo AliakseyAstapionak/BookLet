@@ -27,7 +27,7 @@ async def catalog(filters: Annotated[AnnouncementFiltersSchema, Query()], db=Dep
     return {'announcements': result}
 
 
-@router.post(
+@router.get(
     '/catalog/{anc_id}',
     summary='Карточка объявления',
     description='Возвращает объявление по id. Архивные и забронированные объявления недоступны.',

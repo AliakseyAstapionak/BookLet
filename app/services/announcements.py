@@ -112,9 +112,9 @@ class AnnouncementService:
             query = query.where(AnnouncementModel.name.ilike(f"%{filters.name}%"))
         if filters.type:
             query = query.where(AnnouncementModel.type == filters.type)
-        if filters.min_price:
+        if filters.min_price is not None:
             query = query.where(AnnouncementModel.price >= filters.min_price)
-        if filters.max_price:
+        if filters.max_price is not None:
             query = query.where(AnnouncementModel.price <= filters.max_price)
         if filters.provider:
             query = query.join(UserModel).where(UserModel.username == filters.provider)

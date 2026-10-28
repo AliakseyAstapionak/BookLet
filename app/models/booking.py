@@ -22,7 +22,6 @@ class BookingModel(Base):
     announcement_id: Mapped[int] = mapped_column(ForeignKey('announcements.id'), index=True)
     client_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
     provider_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
-    cancelled_by_id: Mapped[int | None] = mapped_column(ForeignKey('users.id'), default=None)
     start_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     end_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     status: Mapped[BookingStatus] = mapped_column(default=BookingStatus.CONFIRMED)

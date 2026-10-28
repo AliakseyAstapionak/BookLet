@@ -75,6 +75,7 @@ class BookingService:
 
         await db.execute(update(AnnouncementModel).where(AnnouncementModel.id == anc_id, AnnouncementModel.status == StatusEnum.BOOKED)
                 .values(status=StatusEnum.ACTIVE))
+                
         
         db.add(NotificationModel(
             to_user_id=booking.provider_id, sender_id=client_id, type='booking_cancelled', booking_id=booking.id,
