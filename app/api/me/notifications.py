@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from schemas import MyNotificationsResponseSchema, NotificationResponseSchema
+from schemas import MyNotificationsResponseSchema, NotificationResponseSchema, UnreadCountResponseSchema
 from services import NotificationService
 from core import get_db
 from utils import get_current_user
@@ -9,6 +9,39 @@ from ..tags import TAG_NOTIFICATIONS
 router = APIRouter(prefix='/BookLet/me/my_notifications', tags=[TAG_NOTIFICATIONS])
 
 _UNAUTHORIZED = {401: {'description': 'Не авторизован'}}
+
+
+@router.get(
+    '/unread_count',
+    response_model=UnreadCountResponseSchema,
+    summary='Счётчик непрочитанных',
+    description='Количество непрочитанных входящих уведомлений (для значка в меню).',
+    responses=_UNAUTHORIZED,
+)
+async def get_unread_count(db=Depends(get_db), current_user=Depends(get_current_user)):
+    return {'unread': await NotificationService.get_unread_count(user_id=current_user['uid'], db=db)}
+
+
+@router.post(
+    '/read_all',
+    summary='Прочитать все входящие',
+    responses=_UNAUTHORIZED,
+)
+async def read_all_notifications(db=Depends(get_db), current_user=Depends(get_current_user)):
+    changed = await NotificationService.mark_all_read(user_id=current_user['uid'], db=db)
+    return {'success': True, 'marked': changed}
+
+
+@router.post(
+    '/incoming/{not_id}/read',
+    summary='Отметить входящее прочитанным',
+    description='Повторный вызов ничего не ломает.',
+    responses={**_UNAUTHORIZED, 404: {'description': 'Входящее уведомление не найдено'}},
+)
+async def read_notification(not_id: int, db=Depends(get_db), current_user=Depends(get_current_user)):
+    if not await NotificationService.mark_read(not_id=not_id, user_id=current_user['uid'], db=db):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Входящее уведомление не найдено')
+    return {'success': True}
 
 
 #TODO добавить фильтры для всех видов my_notifications/*

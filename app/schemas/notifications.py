@@ -7,6 +7,7 @@ class NotificationSchema(BaseModel):
     type: str
     title: str        
     text: str
+    is_read: bool
     created_at: datetime
 
 class NotificationResponseSchema(BaseModel):
@@ -17,4 +18,7 @@ class MyNotificationsResponseSchema(BaseModel):
 
 class NotificationDataSchema(NotificationResponseSchema):
     pass
+
+class UnreadCountResponseSchema(BaseModel):
+    unread: int
 

@@ -21,7 +21,6 @@ router = APIRouter(prefix='/BookLet', tags=[TAG_LOGIN])
     responses={400: {'description': 'Неверный логин или пароль / аккаунт неактивен'},
                429: {'description': 'Слишком много неудачных попыток входа'}},
 )
-
 async def login(user: UserLoginSchema, background_tasks: BackgroundTasks, response: Response, request: Request, db=Depends(get_db)):
     fail_key = await check_limit('login', request)
     data = await UserService.get_user_by_username(username=user.username, db=db, with_settings=True)

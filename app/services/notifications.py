@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from models import NotificationModel
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, func, update
 from schemas import NotificationDataSchema
 
 class NotificationService:
@@ -15,7 +15,6 @@ class NotificationService:
             await db.commit()
         return True
     
-#TODO подумать как сделать так чтобы выводило и имя пользователя(вообще оно и не надо потому что в тексте сообщений есть имя от кого отпралено)
 
     @staticmethod
     async def get_my_all_notifications(user_id: int, db: AsyncSession):
@@ -46,3 +45,26 @@ class NotificationService:
         query = (select(NotificationModel).where(NotificationModel.id == not_id, NotificationModel.sender_id == client_id))
         result = await db.execute(query)
         return result.scalar()
+
+    @staticmethod
+    async def get_unread_count(user_id: int, db: AsyncSession) -> int:
+        query = (select(func.count()).select_from(NotificationModel)
+                 .where(NotificationModel.to_user_id == user_id, NotificationModel.is_read.is_(False)))
+        return (await db.execute(query)).scalar_one()
+
+    @staticmethod
+    async def mark_read(not_id: int, user_id: int, db: AsyncSession) -> bool:
+        """False, если такого входящего уведомления нет. Повторный вызов безопасен."""
+        result = await db.execute(update(NotificationModel)
+                                  .where(NotificationModel.id == not_id, NotificationModel.to_user_id == user_id)
+                                  .values(is_read=True))
+        await db.commit()
+        return result.rowcount > 0
+
+    @staticmethod
+    async def mark_all_read(user_id: int, db: AsyncSession) -> int:
+        result = await db.execute(update(NotificationModel)
+                                  .where(NotificationModel.to_user_id == user_id, NotificationModel.is_read.is_(False))
+                                  .values(is_read=True))
+        await db.commit()
+        return result.rowcount

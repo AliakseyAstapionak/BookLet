@@ -69,18 +69,18 @@ async def get_my_bookings(status_filter: Optional[BookingStatus] = Query(default
     return await BookingService.get_my_bookings(status='as_provider', user_id=current_user['uid'], status_filter=status_filter, limit=limit, offset=offset, db=db)
 
 
-# @router.get(
-#     '/booked/{anc_id}',
-#     response_model=AnnouncementResponseSchema,
-#     summary='Моё забронированное объявление по id',
-#     responses={**_UNAUTHORIZED, **_NOT_FOUND},
-# )
-# async def my_booked_announcement(anc_id: int, db=Depends(get_db), current_user=Depends(get_current_user)):
-#     user_id = current_user['uid']
-#     announcement = await AnnouncementService.get_my_announcement(status='booked', user_id=user_id, anc_id=anc_id, db=db)
-#     if not announcement:
-#         raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Объявление не найдено')
-#     return {'announcement': announcement}
+@router.post(
+    '/booked/{booking_id}/cancel',
+    summary='Отменить запись клиента',
+    description='Мастер может отменить запись клиента в любой момент до начала услуги. Клиенту придёт уведомление.',
+    responses={**_UNAUTHORIZED,
+               404: {'description': 'Бронь не найдена'},
+               409: {'description': 'Бронь уже отменена или услуга началась'}},
+)
+async def cancel_client_booking(booking_id: int, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
+    await BookingService.cancel_booking(booking_id=booking_id, user_id=current_user['uid'],
+                                        username=current_user['username'], role='provider', db=db)
+    return {'success': True, 'msg': 'Запись отменена'}
 
 
 @router.get(

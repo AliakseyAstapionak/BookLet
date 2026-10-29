@@ -5,3 +5,4 @@ from .booking import BookingService, BookingStatus
 from .notifications import NotificationService
 from .availability import AvailabilityRuleService
 from .slots import SlotService
+from .calendar import CalendarService

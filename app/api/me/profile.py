@@ -1,7 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Path
-from services import AvailabilityRuleService
+from datetime import date
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Path
+from services import AvailabilityRuleService, CalendarService
 from schemas import (MyAccountDataResponseSchema, CreateAvailabilityRuleSchema,
-                     AvailabilityResponseSchema, AvailabilityRuleResponseSchema)
+                     AvailabilityResponseSchema, AvailabilityRuleResponseSchema, CalendarResponseSchema)
 from services import UserService
 from core import get_db
 from utils import get_current_user
@@ -67,3 +70,18 @@ async def delete_operating_mode(weekday: int = Path(ge=0, le=6), current_user=De
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='На этот день режим работы не задан')
     return {'success': True, 'msg': 'День убран из режима работы'}
+
+
+@router.get(
+    '/calendar',
+    response_model=CalendarResponseSchema,
+    summary='Мой календарь',
+    description='Занятые и свободные окна по дням: записи ко мне (`role=provider`), мои записи к другим '
+                '(`role=client`) и свободные промежутки внутри режима работы. Отменённые брони не показываются. '
+                'Свободные окна считаются только по записям ко мне и только на будущее.',
+    responses=_UNAUTHORIZED,
+)
+async def get_my_calendar(date_from: Optional[date] = Query(default=None, description='Первый день, по умолчанию сегодня'),
+                          days: int = Query(default=7, ge=1, le=31),
+                          current_user=Depends(get_current_user), db=Depends(get_db)):
+    return await CalendarService.get_calendar(user_id=current_user['uid'], date_from=date_from, days=days, db=db)

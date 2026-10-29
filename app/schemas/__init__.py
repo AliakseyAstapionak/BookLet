@@ -3,7 +3,8 @@ from .auth import (UserRegistrationSchema, UserPublicActionSchema, UserLoginSche
                    ChangeShowEmailSchema)
 from .announcement import CreateAnnouncementSchema, AnnouncementsResponseSchema, AnnouncementResponseSchema, AnnouncementOut
 from .filters import AnnouncementFiltersSchema, SortEnum, MyAnnouncementFiltersSchema
-from .notifications import MyNotificationsResponseSchema, NotificationDataSchema, NotificationResponseSchema
+from .notifications import MyNotificationsResponseSchema, NotificationDataSchema, NotificationResponseSchema, UnreadCountResponseSchema
 from .bookings import MyBookingsResponseSchema, BookingsResponseSchema
 from .users import MyAccountDataResponseSchema, AccountDataResponseSchema
 from .availability import CreateAvailabilityRuleSchema, AvailabilityResponseSchema, AvailabilityRuleResponseSchema
+from .calendar import CalendarResponseSchema
