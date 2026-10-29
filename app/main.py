@@ -1,4 +1,7 @@
-from fastapi import FastAPI
+from pathlib import Path
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from core import engine, Base, redis_client
 import uvicorn
 from contextlib import asynccontextmanager
@@ -40,6 +43,7 @@ redis_client.close() устарел, используй aclose().
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     yield
+    await engine.dispose()
     await redis_client.close()
     print('Приложение остановлено!')
 
@@ -56,6 +60,21 @@ app = FastAPI(
 # Порядок роутеров = порядок групп в документации (см. api/__init__.py и api/tags.py)
 for router in routers:
     app.include_router(router)
+
+# ---------- Фронтенд (папка static рядом с main.py) ----------
+STATIC_DIR = Path(__file__).parent / 'static'
+app.mount('/static', StaticFiles(directory=STATIC_DIR), name='static')
+
+
+@app.get('/{full_path:path}', include_in_schema=False)
+async def frontend(full_path: str):
+    """Отдаёт SPA для любых путей, не занятых API (/BookLet/*, /docs, /ping и т.д.).
+    Нужен в том числе для ссылки сброса пароля: /reset_password?reset_token=..."""
+    if full_path.startswith('BookLet/'):
+        raise HTTPException(status_code=404, detail='Not Found')
+    return FileResponse(STATIC_DIR / 'index.html')
+
+
 
 if __name__ == '__main__':
     uvicorn.run('main:app', host='127.0.0.1', port=8000, reload=True)

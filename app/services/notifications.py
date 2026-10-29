@@ -6,10 +6,13 @@ from schemas import NotificationDataSchema
 class NotificationService:
 
     @staticmethod
-    async def send_book_message(to_user_id: int, sender_id: int,title: str, msg_text: str, db: AsyncSession):
-        message = NotificationModel(to_user_id=to_user_id, sender_id=sender_id, title=title, text=msg_text)
+    async def send_book_message(to_user_id: int, sender_id: int, title: str, msg_text: str, db: AsyncSession,
+                                notif_type: str = 'general', booking_id: int | None = None, commit: bool = True):
+        message = NotificationModel(to_user_id=to_user_id, sender_id=sender_id, title=title, text=msg_text,
+                                    type=notif_type, booking_id=booking_id)
         db.add(message)
-        await db.commit()
+        if commit:
+            await db.commit()
         return True
     
 #TODO подумать как сделать так чтобы выводило и имя пользователя(вообще оно и не надо потому что в тексте сообщений есть имя от кого отпралено)

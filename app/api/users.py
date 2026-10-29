@@ -1,20 +1,26 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from core import get_db
-from services import UserService, AnnouncementService
-from schemas import AccountDataResponseSchema
+from services import UserService, AnnouncementService, AvailabilityRuleService
+from schemas import AccountDataResponseSchema, AvailabilityResponseSchema
 from .tags import TAG_USER_PROFILES
 
 router = APIRouter(prefix='/BookLet/user/{user_id}', tags=[TAG_USER_PROFILES])
 
 
-@router.get('/operating_mode')
+@router.get(
+    '/operating_mode',
+    response_model=AvailabilityResponseSchema,
+    summary='Режим работы пользователя',
+    description='Окна приёма пользователя по дням недели (0 = понедельник). Пустой список значит, что режим не задан.',
+    responses={404: {'description': 'Аккаунт не найден'}},
+)
 async def get_operating_mode(user_id: int, db=Depends(get_db)):
-    res = await UserService.get_operating_mode(user_id=user_id, db=db)
-    if not res:
-        return {'success': False}
-    return res
-
+    user = await UserService.get_user_by_id(id=user_id, with_settings=False, db=db)
+    if not user or user.is_active == False:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Аккаунт не найден')
+    rules = await AvailabilityRuleService.get_operating_mode(user_id=user_id, db=db)
+    return {'rules': rules}
 
 
 @router.get(

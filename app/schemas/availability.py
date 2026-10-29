@@ -1,6 +1,6 @@
-from pydantic import BaseModel, Field
 from datetime import time
-from pydantic import BaseModel, Field, model_validator
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class CreateAvailabilityRuleSchema(BaseModel):
@@ -13,3 +13,20 @@ class CreateAvailabilityRuleSchema(BaseModel):
         if self.end_time <= self.start_time:
             raise ValueError('Конец окна должен быть позже начала')
         return self
+
+
+class AvailabilityRuleOutSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    weekday: int
+    start_time: time
+    end_time: time
+
+
+class AvailabilityResponseSchema(BaseModel):
+    rules: list[AvailabilityRuleOutSchema]
+
+
+class AvailabilityRuleResponseSchema(BaseModel):
+    success: bool = True
+    msg: str
+    rule: AvailabilityRuleOutSchema

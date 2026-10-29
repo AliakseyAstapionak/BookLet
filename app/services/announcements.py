@@ -1,8 +1,9 @@
-from typing import Literal, List
+from typing import Literal
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from models import AnnouncementModel, StatusEnum, UserModel, user_liked_announcements
-from schemas import AnnouncementFiltersSchema, AnnouncementResponseSchema, SortEnum, MyAnnouncementFiltersSchema
+from schemas import (AnnouncementFiltersSchema, AnnouncementResponseSchema, SortEnum,
+                     MyAnnouncementFiltersSchema, AnnouncementOut)
 from fastapi import HTTPException, status
 
 
@@ -13,11 +14,29 @@ SORT_MAP = {
     SortEnum.NAME:       (AnnouncementModel.name.asc(), AnnouncementModel.id.asc()),
 }
 
+
+def _apply_filters(query, filters):
+    """Общие фильтры для каталога, моих объявлений и избранного."""
+    if filters.name:
+        query = query.where(AnnouncementModel.name.ilike(f"%{filters.name}%"))
+    if filters.type:
+        query = query.where(AnnouncementModel.type == filters.type)
+    if filters.min_price is not None:
+        query = query.where(AnnouncementModel.price >= filters.min_price)
+    if filters.max_price is not None:
+        query = query.where(AnnouncementModel.price <= filters.max_price)
+    return query
+
+
+def _with_provider(announcement: AnnouncementModel, username: str) -> dict:
+    return {**AnnouncementOut.model_validate(announcement).model_dump(), 'provider_username': username}
+
+
 class AnnouncementService:
-    
+
     @staticmethod
     async def create_announcement(user_id: int, name: str, status: Literal['active', 'archived'], type: str, price: int, db: AsyncSession,
-                                description: str | None = None, duration_minutes: int = 60, cancel_before_hours: int = 24):
+                                  description: str | None = None, duration_minutes: int = 60, cancel_before_hours: int = 24):
         new_anc = AnnouncementModel(user_id=user_id, name=name, status=status, type=type, price=price, description=description,
                                     duration_minutes=duration_minutes, cancel_before_hours=cancel_before_hours)
         db.add(new_anc)
@@ -26,10 +45,9 @@ class AnnouncementService:
         return new_anc
 
     @staticmethod
-    async def get_announcement(id: int,  db: AsyncSession) -> AnnouncementModel:
-        query = select(AnnouncementModel).where(AnnouncementModel.id == id) 
-        result = await db.execute(query)
-        result = result.scalar()
+    async def get_announcement(id: int, db: AsyncSession) -> AnnouncementModel:
+        """ORM-объект: нужен внутри сервисов и для проверок (лайк, бронь)."""
+        result = (await db.execute(select(AnnouncementModel).where(AnnouncementModel.id == id))).scalar()
         if not result:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Данное обьявление не найдено')
         if result.status == 'archived':
@@ -37,96 +55,79 @@ class AnnouncementService:
         return result
 
     @staticmethod
+    async def get_announcement_with_provider(id: int, db: AsyncSession) -> dict:
+        """Для карточки в каталоге: объявление + имя мастера."""
+        query = (select(AnnouncementModel, UserModel.username)
+                 .join(UserModel, UserModel.id == AnnouncementModel.user_id)
+                 .where(AnnouncementModel.id == id))
+        row = (await db.execute(query)).first()
+        if not row:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Данное обьявление не найдено')
+        announcement, username = row
+        if announcement.status == 'archived':
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Данное обьявление недоступно')
+        return _with_provider(announcement, username)
+
+    @staticmethod
     async def get_announcement_user(id: int, db: AsyncSession) -> int | None:
         query = select(AnnouncementModel.user_id).where(AnnouncementModel.id == id)
-        result = await db.execute(query)
-        return result.scalar()
-    
+        return (await db.execute(query)).scalar()
+
     @staticmethod
-    async def get_user_announcements(user_id: int, db: AsyncSession) -> AnnouncementResponseSchema :
+    async def get_user_announcements(user_id: int, db: AsyncSession):
         query = select(AnnouncementModel).where(AnnouncementModel.status == 'active', AnnouncementModel.user_id == user_id)
-        result = await db.execute(query)
-        return result.scalars().all()
-    
+        return (await db.execute(query)).scalars().all()
+
     @staticmethod
     async def existing_anouncement(id: int, db: AsyncSession) -> bool:
-        query = select(AnnouncementModel).where(AnnouncementModel.id == id) 
-        result = await db.execute(query)
-        return bool(result.scalar())
+        query = select(AnnouncementModel).where(AnnouncementModel.id == id)
+        return bool((await db.execute(query)).scalar())
 
     @staticmethod
     async def get_announcement_name(id: int, db: AsyncSession):
-        query = select(AnnouncementModel.name).where(AnnouncementModel.id == id) 
-        result = await db.execute(query)
-        return result.scalar()
-
+        query = select(AnnouncementModel.name).where(AnnouncementModel.id == id)
+        return (await db.execute(query)).scalar()
 
     @staticmethod
-    async def get_my_announcements(user_id: int, filters: MyAnnouncementFiltersSchema, status: Literal['active', 'archived', 'booked'], db: AsyncSession, limit: int = 20, offset: int = 0) -> AnnouncementResponseSchema :
+    async def get_my_announcements(user_id: int, filters: MyAnnouncementFiltersSchema, status: Literal['active', 'archived'], db: AsyncSession):
         query = select(AnnouncementModel).where(AnnouncementModel.status == status, AnnouncementModel.user_id == user_id)
-        if filters.name:
-            query = query.where(AnnouncementModel.name.ilike(f"%{filters.name}%"))
-        if filters.type:
-            query = query.where(AnnouncementModel.type == filters.type)
-        if filters.min_price:
-            query = query.where(AnnouncementModel.price >= filters.min_price)
-        if filters.max_price:
-            query = query.where(AnnouncementModel.price <= filters.max_price)
-        if filters.min_price is not None:
-            query = query.where(AnnouncementModel.price >= filters.min_price)
-        if filters.max_price is not None:
-            query = query.where(AnnouncementModel.price <= filters.max_price)
-    
+        query = _apply_filters(query, filters)
         query = query.order_by(*SORT_MAP[filters.sort]).limit(filters.limit).offset(filters.offset)
-        result = await db.execute(query)
-        return result.scalars().all()
+        return (await db.execute(query)).scalars().all()
 
-    
     @staticmethod
-    async def get_liked_user_announcements(filters: MyAnnouncementFiltersSchema, uid: int, db: AsyncSession):
-        query = (select(AnnouncementModel).join(user_liked_announcements, AnnouncementModel.id == user_liked_announcements.c.announcement_id
-                ).where(user_liked_announcements.c.user_id == uid))
-        if filters.name:
-            query = query.where(AnnouncementModel.name.ilike(f"%{filters.name}%"))
-        if filters.type:
-            query = query.where(AnnouncementModel.type == filters.type)
-        if filters.min_price:
-            query = query.where(AnnouncementModel.price >= filters.min_price)
-        if filters.max_price:
-            query = query.where(AnnouncementModel.price <= filters.max_price)
+    async def get_liked_user_announcements(filters: MyAnnouncementFiltersSchema, uid: int, db: AsyncSession) -> list[dict]:
+        query = (select(AnnouncementModel, UserModel.username)
+                 .join(UserModel, UserModel.id == AnnouncementModel.user_id)
+                 .join(user_liked_announcements, AnnouncementModel.id == user_liked_announcements.c.announcement_id)
+                 .where(user_liked_announcements.c.user_id == uid))
+        query = _apply_filters(query, filters)
         query = query.order_by(*SORT_MAP[filters.sort]).limit(filters.limit).offset(filters.offset)
-        result = await db.execute(query)
-        return result.scalars().all()
-
+        rows = (await db.execute(query)).all()
+        return [_with_provider(a, username) for a, username in rows]
 
     @staticmethod
     async def get_my_announcement(user_id: int, anc_id: int, status: StatusEnum, db: AsyncSession):
         query = select(AnnouncementModel).where(AnnouncementModel.id == anc_id, AnnouncementModel.user_id == user_id, AnnouncementModel.status == status)
-        result = await db.execute(query)
-        return result.scalar()
-    
+        return (await db.execute(query)).scalar()
+
     @staticmethod
     async def delete_announcement(id: int, db: AsyncSession) -> bool:
-        query = update(AnnouncementModel).where(AnnouncementModel.id == id, AnnouncementModel.status == StatusEnum.ACTIVE).values(status=StatusEnum.ARCHIVED)
+        query = (update(AnnouncementModel)
+                 .where(AnnouncementModel.id == id, AnnouncementModel.status == StatusEnum.ACTIVE)
+                 .values(status=StatusEnum.ARCHIVED))
         result = await db.execute(query)
         await db.commit()
         return result.rowcount > 0
 
     @staticmethod
-    async def get_catalog(filters: AnnouncementFiltersSchema, db: AsyncSession) -> AnnouncementResponseSchema:
-        query = select(AnnouncementModel).where(AnnouncementModel.status == 'active')
-        if filters.name:
-            query = query.where(AnnouncementModel.name.ilike(f"%{filters.name}%"))
-        if filters.type:
-            query = query.where(AnnouncementModel.type == filters.type)
-        if filters.min_price is not None:
-            query = query.where(AnnouncementModel.price >= filters.min_price)
-        if filters.max_price is not None:
-            query = query.where(AnnouncementModel.price <= filters.max_price)
+    async def get_catalog(filters: AnnouncementFiltersSchema, db: AsyncSession) -> list[dict]:
+        query = (select(AnnouncementModel, UserModel.username)
+                 .join(UserModel, UserModel.id == AnnouncementModel.user_id)
+                 .where(AnnouncementModel.status == 'active'))
+        query = _apply_filters(query, filters)
         if filters.provider:
-            query = query.join(UserModel).where(UserModel.username == filters.provider)
+            query = query.where(UserModel.username == filters.provider)
         query = query.order_by(*SORT_MAP[filters.sort]).limit(filters.limit).offset(filters.offset)
-        result = await db.execute(query)
-        return result.scalars().all()
-
-
+        rows = (await db.execute(query)).all()
+        return [_with_provider(a, username) for a, username in rows]

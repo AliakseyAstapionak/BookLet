@@ -1,7 +1,8 @@
 from datetime import time
-from sqlalchemy import CheckConstraint, ForeignKey, SmallInteger, Time
+
 from sqlalchemy import CheckConstraint, ForeignKey, SmallInteger, Time, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
+
 from core import Base
 
 
@@ -9,7 +10,7 @@ class AvailabilityRuleModel(Base):
     __tablename__ = 'availability_rules'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
     weekday: Mapped[int] = mapped_column(SmallInteger)      # 0 = пн ... 6 = вс
     start_time: Mapped[time] = mapped_column(Time)
     end_time: Mapped[time] = mapped_column(Time)
