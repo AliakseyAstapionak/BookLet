@@ -13,10 +13,10 @@ class MyBookingOut(BaseModel):
     client_id: int
     client_username: str
     status: str
-    start_at: Optional[datetime] = None   # пока времени нет, будет None
+    start_at: Optional[datetime] = None   
     end_at: Optional[datetime] = None
     cancel_before_hours: int
-    can_cancel: bool = False   # можно ли отменить прямо сейчас (с учётом правил)
+    can_cancel: bool = False   
     created_at: datetime
 
 

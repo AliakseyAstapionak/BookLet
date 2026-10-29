@@ -101,7 +101,6 @@ async def my_archived_announcements(filters: Annotated[MyAnnouncementFiltersSche
     summary='Моё архивное объявление по id',
     responses={**_UNAUTHORIZED, **_NOT_FOUND},
 )
-
 async def my_archived_announcement(anc_id: int, db=Depends(get_db), current_user=Depends(get_current_user)):
     user_id = current_user['uid']
     announcement = await AnnouncementService.get_my_announcement(status='archived', user_id=user_id, anc_id=anc_id, db=db)
@@ -109,8 +108,22 @@ async def my_archived_announcement(anc_id: int, db=Depends(get_db), current_user
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Объявление не найдено')
     return {'announcement': announcement}
 
+@router.post(
+    '/{anc_id}/unarchive',
+    summary='Разархивировать объявление по id',
+    responses={**_UNAUTHORIZED, **_NOT_FOUND},
+)
+async def unarchive_announcement(anc_id: int, db=Depends(get_db), current_user=Depends(get_current_user)):
+    user_id = current_user['uid']
+    announcement = await AnnouncementService.unarchive_announcement(user_id=user_id, anc_id=anc_id, db=db)
+    if not announcement:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail='Объявление не найдено в архиве или у вас нет прав'
+        )
+    return {'success': True, 'msg': 'Объявление удалено из архива'}
 
-#TODO подумать а можно ли удалять вообщще забронированные(пока что нельзя)
+
 @router.post(
     '/{anc_id}/archive',
     summary='Отправить объявление в архив',

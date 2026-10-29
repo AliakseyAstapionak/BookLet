@@ -121,6 +121,15 @@ class AnnouncementService:
         return result.rowcount > 0
 
     @staticmethod
+    async def unarchive_announcement(anc_id: int, user_id: int, db: AsyncSession) -> bool:
+        query = (update(AnnouncementModel)
+                 .where(AnnouncementModel.id == anc_id, AnnouncementModel.status == StatusEnum.ARCHIVED, AnnouncementModel.user_id == user_id)
+                 .values(status=StatusEnum.ACTIVE))
+        result = await db.execute(query)
+        await db.commit()
+        return result.rowcount > 0
+
+    @staticmethod
     async def get_catalog(filters: AnnouncementFiltersSchema, db: AsyncSession) -> list[dict]:
         query = (select(AnnouncementModel, UserModel.username)
                  .join(UserModel, UserModel.id == AnnouncementModel.user_id)
