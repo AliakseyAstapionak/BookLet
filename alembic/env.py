@@ -15,6 +15,7 @@ from alembic import context
 from core.database import Base
 from models.users import UserModel
 from models.configs import UserSettingsModel
+from models.availabilty import AvailabilityRuleModel
 from settings import dbsettings
 
 config = context.config

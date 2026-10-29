@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, exists, update, not_, select, insert, delete
 from sqlalchemy.orm import selectinload
-from models import UserModel, AnnouncementModel, UserSettingsModel
+from models import UserModel, AnnouncementModel, UserSettingsModel, AvailabilityRuleModel
 from models.tables import user_liked_announcements
 
 from typing import Optional
@@ -116,4 +116,10 @@ class UserService:
             "is_liked": is_liked
         }
 
+
+    @staticmethod
+    async def get_operating_mode(user_id: int, db: AsyncSession):
+        query = select(AvailabilityRuleModel).where(AvailabilityRuleModel.user_id == user_id).order_by(AvailabilityRuleModel.weekday.asc())
+        res = await db.execute(query)
+        return res.scalars().all()
         

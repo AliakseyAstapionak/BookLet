@@ -6,3 +6,4 @@ from .filters import AnnouncementFiltersSchema, SortEnum, MyAnnouncementFiltersS
 from .notifications import MyNotificationsResponseSchema, NotificationDataSchema, NotificationResponseSchema
 from .bookings import MyBookingsResponseSchema, BookingsResponseSchema
 from .users import MyAccountDataResponseSchema, AccountDataResponseSchema
+from .availability import CreateAvailabilityRuleSchema

@@ -8,6 +8,15 @@ from .tags import TAG_USER_PROFILES
 router = APIRouter(prefix='/BookLet/user/{user_id}', tags=[TAG_USER_PROFILES])
 
 
+@router.get('/operating_mode')
+async def get_operating_mode(user_id: int, db=Depends(get_db)):
+    res = await UserService.get_operating_mode(user_id=user_id, db=db)
+    if not res:
+        return {'success': False}
+    return res
+
+
+
 @router.get(
     '/profile',
     response_model=AccountDataResponseSchema,

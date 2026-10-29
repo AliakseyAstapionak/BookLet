@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-
-from schemas import MyAccountDataResponseSchema
+from services import AvailabilityRuleService
+from schemas import MyAccountDataResponseSchema, CreateAvailabilityRuleSchema
 from services import UserService
 from core import get_db
 from utils import get_current_user
@@ -22,3 +22,8 @@ async def get_my_data(db=Depends(get_db), current_data=Depends(get_current_user)
     if not data or data.is_active == False:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Аккаунт не найден')
     return {'user': data, 'settings': data.settings}
+
+@router.post('/set_operating_mode')
+async def create_operating_mode(rule: CreateAvailabilityRuleSchema ,current_user=Depends(get_current_user), db=Depends(get_db)):
+    res = await AvailabilityRuleService.create_operating_mode(rule=rule, user_id=current_user['uid'], db=db)
+    return {'success': True, 'msg': 'Режим работы изменен', 'rule': res}

@@ -14,8 +14,6 @@ router = APIRouter(prefix='/BookLet', tags=[TAG_CATALOG])
 _UNAUTHORIZED = {401: {'description': 'Не авторизован'}}
 
 
-# ---------- Просмотр (без авторизации) ----------
-
 # TODO добавить в фильтры мо
 @router.get(
     '/catalog',
@@ -36,10 +34,6 @@ async def catalog(filters: Annotated[AnnouncementFiltersSchema, Query()], db=Dep
 )
 async def announcement(anc_id: int, db=Depends(get_db)):
     result = await AnnouncementService.get_announcement(id=anc_id, db=db)
-    if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Данное обьявление не найдено')
-    if result.status == 'archived' or result.status == 'booked':
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Данное обьявление недоступно')
     return {'success': True, 'announcement': result}
 
 
@@ -55,13 +49,21 @@ async def announcement(anc_id: int, db=Depends(get_db)):
 )
 async def like_anc(anc_id: int, db: AsyncSession = Depends(get_db), current_data=Depends(get_current_user)):
     announcement = await AnnouncementService.get_announcement(id=anc_id, db=db)
-    if not announcement:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Объявление не найдено")
     if announcement.user_id == current_data['uid']:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Нельзя лайкать свои сообщения')
     result = await UserService.like_announcement(uid=current_data['uid'], anc_id=anc_id, db=db)
     return result
 
+@router.get('/catalog/{anc_id}/slots',
+            summary='Свободные слоты',
+            description='Свободное время для записи. По умолчанию ближайшие 7 дней, максимум 31 день.')
+async def free_slots(db=Depends(get_db)):
+    ...
+"""
+Слоты (GET /catalog/{id}/slots). Берём расписание продавца (окна по дням недели), нарезаем на слоты по длительности услуги и вычитаем занятое: прошедшее время и все активные брони продавца (PENDING/CONFIRMED) по всем его объявлениям. Остаток отдаём клиенту. Это только показ, ничего не резервируется.
+Бронирование (POST /catalog/{id}/book). Здесь не используется список слотов, который клиент видел раньше: он мог устареть, и ему вообще нельзя доверять. Сервер заново считает свободные слоты на этот день, по той же функции с тем же вычитанием занятого, и проверяет, что присланный start_at входит в результат. Если да, создаётся бронь.
+Последняя страховка — констрейнт в БД. Если двое одновременно прошли шаг 2 на один слот, вставка второго упадёт на EXCLUDE, и он получит 409. Без него между проверкой и вставкой остаётся окно для гонки.
+Получается, что занятое время считается один раз, в get_free_slots, и используется в обоих местах: и для показа, и для проверки при бронировании. Дублирующей логики сравнения нет, поэтому показанное клиенту и разрешённое при записи не разойдутся. """
 
 #TODO подумать на каких условиях продавец может отменить бронь и стоит ли вообще это делать(пока что не реализовано)
 @router.post(
@@ -76,4 +78,4 @@ async def book_announcement(anc_id: int, db: AsyncSession = Depends(get_db), cur
     client_id = current_data['uid']
     booking = await BookingService.book_announcement(anc_id=anc_id, client_id=client_id, client_name=client_name, db=db)
 
-    return {"success": True, "message": "Бронирование прошло успешно"}
+    return {"success": True, "booking": booking}

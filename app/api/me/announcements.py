@@ -69,13 +69,6 @@ async def get_my_bookings(status_filter: Optional[BookingStatus] = Query(default
     return await BookingService.get_my_bookings(status='as_provider', user_id=current_user['uid'], status_filter=status_filter, limit=limit, offset=offset, db=db)
 
 
-
-# async def my_booked_announcements(filters: Annotated[MyAnnouncementFiltersSchema, Query()], db=Depends(get_db), current_user=Depends(get_current_user)):
-#     user_id = current_user['uid']
-#     announcements = await AnnouncementService.get_my_announcements(user_id=user_id, status='booked', filters=filters, db=db)
-#     return {'announcements': announcements}
-
-
 # @router.get(
 #     '/booked/{anc_id}',
 #     response_model=AnnouncementResponseSchema,

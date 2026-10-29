@@ -3,6 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from models import AnnouncementModel, StatusEnum, UserModel, user_liked_announcements
 from schemas import AnnouncementFiltersSchema, AnnouncementResponseSchema, SortEnum, MyAnnouncementFiltersSchema
+from fastapi import HTTPException, status
+
 
 SORT_MAP = {
     SortEnum.NEWEST:     (AnnouncementModel.created_at.desc(), AnnouncementModel.id.desc()),
@@ -27,7 +29,12 @@ class AnnouncementService:
     async def get_announcement(id: int,  db: AsyncSession) -> AnnouncementModel:
         query = select(AnnouncementModel).where(AnnouncementModel.id == id) 
         result = await db.execute(query)
-        return result.scalar()
+        result = result.scalar()
+        if not result:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Данное обьявление не найдено')
+        if result.status == 'archived':
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Данное обьявление недоступно')
+        return result
 
     @staticmethod
     async def get_announcement_user(id: int, db: AsyncSession) -> int | None:

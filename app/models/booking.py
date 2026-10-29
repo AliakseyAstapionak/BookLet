@@ -1,8 +1,7 @@
-"""models/booking.py - простая версия"""
 import enum
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core import Base
@@ -22,9 +21,14 @@ class BookingModel(Base):
     announcement_id: Mapped[int] = mapped_column(ForeignKey('announcements.id'), index=True)
     client_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
     provider_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
-    start_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
-    end_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    end_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     status: Mapped[BookingStatus] = mapped_column(default=BookingStatus.CONFIRMED)
+    price: Mapped[int]
+    cancel_before_hours: Mapped[int]
+    cancelled_by_id: Mapped[int | None] = mapped_column(ForeignKey('users.id'), default=None)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+   
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (CheckConstraint('end_at > start_at', name='ck_booking_time_order'),)
