@@ -145,7 +145,6 @@ class BookingService:
                            f'(до {deadline.astimezone(SERVICE_TZ).strftime("%d.%m.%Y %H:%M")}). '
                            f'Свяжитесь с мастером.')
 
-        # Условный UPDATE: защита от двойной отмены и гонки с другой стороной
         result = await db.execute(
             update(BookingModel)
             .where(BookingModel.id == booking_id, BookingModel.status.in_(ACTIVE_STATUSES))

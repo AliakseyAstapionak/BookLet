@@ -13,7 +13,6 @@ from ..tags import TAG_PROFILE
 router = APIRouter(prefix='/BookLet/account/me', tags=[TAG_PROFILE])
 
 
-# TODO нужно подумать как разбединить показ данных для пользователя другого и своего аккаунта потому что что бы на своем акке почта показывалась всегда а на другом только если пользователь открыт
 @router.get(
     '',
     response_model=MyAccountDataResponseSchema,

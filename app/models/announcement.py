@@ -12,7 +12,6 @@ class StatusEnum(str, enum.Enum):
     ARCHIVED = 'archived'
 
 
-#TODO подумать над временем и бронированием 
 class AnnouncementModel(Base):
     __tablename__ = 'announcements'
 

@@ -10,6 +10,8 @@ const badge=()=>S.unread>0?`<span class="badge" aria-label="Непрочитан
 const ST={pending:'Ожидает',confirmed:'Подтверждена',cancelled:'Отменена',completed:'Завершена'};
 const HEART='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-4.6-9.3-9.1C1.1 8.6 2.9 5 6.4 5c2 0 3.4 1.1 4.1 2.3h3C14.2 6.100 15.600 5 17.600 5c3.500 0 5.300 3.600 3.700 6.900C19 16.400 12 21 12 21z"/></svg>';
 const E=(h,p='')=>`<div class="empty"><h2>${h}</h2><p>${p}</p></div>`;
+const stars=n=>`<span class="stars" style="--p:${Math.max(0,Math.min(5,n))/5*100}%" role="img" aria-label="Оценка ${String(n).replace('.',',')} из 5">★★★★★</span>`;
+const plural=(n,a,b,c)=>{const m=n%100,k=n%10;return n+' '+(m>10&&m<20?c:k===1?a:k>1&&k<5?b:c)};
 function toast(m,err){const t=document.createElement('div');t.className='toast'+(err?' err':'');t.textContent=m;$('#toasts').append(t);setTimeout(()=>t.remove(),4500)}
 
 const B='/BookLet';
@@ -67,6 +69,7 @@ document.addEventListener('click',e=>{
   const lk=e.target.closest('[data-like]');if(lk)return like(lk);
   const ar=e.target.closest('[data-arch]');if(ar)return archive(ar.dataset.arch);
   const cn=e.target.closest('[data-cancel]');if(cn)return cancelBooking(cn);
+  const rv=e.target.closest('[data-review]');if(rv)return reviewForm({anc:+rv.dataset.anc,name:rv.dataset.name,booking:rv.dataset.review?+rv.dataset.review:null,after:rv.dataset.after});
   const c=e.target.closest('[data-open]');if(c)open(c.dataset.open);
 });
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches('[data-open]'))open(e.target.dataset.open)});
@@ -149,8 +152,8 @@ async function open(id){
   try{
     const {announcement:a}=await api('/catalog/'+id);if(a.provider_username)S.names[a.user_id]=a.provider_username;await names([a.user_id]);
     modal(`<h2>${esc(a.name)}</h2><div class="meta"><span class="chip">${esc(a.type)}</span><span class="chip">${dur(a.duration_minutes)}</span><span class="chip">Отмена за ${a.cancel_before_hours} ч до начала</span></div>
-<p class="by">Мастер: <a data-l href="/user/${a.user_id}">${esc(S.names[a.user_id])}</a></p>${a.description?`<p class="desc">${esc(a.description)}</p>`:''}<div class="foot"><b>${RUB(a.price)}</b></div><div id="bk"></div>`);
-    await booking(a,$('#bk'));
+<p class="by">Мастер: <a data-l href="/user/${a.user_id}">${esc(S.names[a.user_id])}</a></p>${a.description?`<p class="desc">${esc(a.description)}</p>`:''}<div class="foot"><b>${RUB(a.price)}</b></div><div id="bk"></div><section class="revs" id="rv" aria-labelledby="rvh"></section>`);
+    await Promise.all([booking(a,$('#bk')),reviews(a,$('#rv'))]);
   }catch(e){modal(`<h2>Не удалось открыть услугу</h2><p>${esc(e.message)}</p>`)}
 }
 function slotList(d){
@@ -181,6 +184,47 @@ async function booking(a,box){
   draw();
 }
 
+/* ---------- reviews ---------- */
+const reviewItem=r=>`<article class="rev"><div class="rh"><a data-l href="/user/${r.author_id}">${esc(r.author_username)}</a>${stars(r.rating)}<time datetime="${esc(r.created_at)}">${D(r.created_at,{dateStyle:'medium'})}</time></div>${r.text?`<p>${esc(r.text)}</p>`:''}</article>`;
+async function reviews(a,box){
+  const L=10;let off=0,total=0;
+  const draw=(avg,items)=>{
+    const mine=S.me&&S.me.user.id!==a.user_id;
+    box.innerHTML=`<div class="rtop"><h3 id="rvh">Отзывы</h3>${total?`<span class="avg"><b>${String(avg).replace('.',',')}</b>${stars(avg)}<small>${plural(total,'отзыв','отзыва','отзывов')}</small></span>`:''}</div>
+${mine?`<button class="btn sm ghost" data-review data-anc="${a.id}" data-name="${esc(a.name)}" data-after="open">Оставить отзыв</button>`:''}
+${total?`<div class="rlist">${items}</div><button class="btn sm ghost" id="rm" ${off<total?'':'hidden'}>Показать ещё</button>`:'<p class="hint">Отзывов пока нет. Их можно оставить после визита.</p>'}`;
+  };
+  try{
+    let d=await api(`/catalog/${a.id}/reviews`,{q:{limit:L,offset:0}});
+    total=d.total;off=d.reviews.length;let html=d.reviews.map(reviewItem).join('');
+    draw(d.average_rating,html);
+    const more=()=>{const b=$('#rm',box);if(b)b.onclick=async()=>{b.disabled=true;
+      try{d=await api(`/catalog/${a.id}/reviews`,{q:{limit:L,offset:off}});off+=d.reviews.length;html+=d.reviews.map(reviewItem).join('');draw(d.average_rating,html);more()}
+      catch(e){toast(e.message,1);b.disabled=false}}};
+    more();
+  }catch(e){box.innerHTML=`<h3 id="rvh">Отзывы</h3><p class="muted">Не удалось загрузить отзывы.</p>`}
+}
+function reviewForm({anc,name,booking,after}){
+  let val=0;
+  modal(`<h2>Оставить отзыв</h2><p class="by">${esc(name)}</p>
+<form id="rf2" class="form"><div><span class="lbl" id="rl">Ваша оценка</span><div class="pick" role="radiogroup" aria-labelledby="rl">${[1,2,3,4,5].map(n=>`<button type="button" role="radio" aria-checked="false" aria-label="${plural(n,'звезда','звезды','звёзд')}" data-star="${n}">★</button>`).join('')}</div></div>
+<label>Комментарий <small class="muted">необязательно</small><textarea name="text" rows="4" maxlength="1000" placeholder="Как всё прошло? Что понравилось?"></textarea></label><small class="hint" id="cnt">0 / 1000</small>
+<p class="err" role="alert"></p><button class="btn sun">Отправить отзыв</button></form>`);
+  if(!dlg.open)dlg.showModal();
+  const f=$('#rf2'),paint=n=>$$('[data-star]',f).forEach(b=>{const on=+b.dataset.star<=n;b.classList.toggle('on',on);b.setAttribute('aria-checked',+b.dataset.star===val)});
+  $$('[data-star]',f).forEach(b=>{b.onclick=()=>{val=+b.dataset.star;paint(val);$('.err',f).textContent=''};
+    b.onmouseenter=()=>paint(+b.dataset.star);b.onfocus=()=>paint(+b.dataset.star);b.onblur=()=>paint(val);
+    b.onkeydown=e=>{const k={ArrowRight:1,ArrowUp:1,ArrowLeft:-1,ArrowDown:-1}[e.key];if(!k)return;e.preventDefault();val=Math.min(5,Math.max(1,(val||0)+k));paint(val);$(`[data-star="${val}"]`,f).focus()}});
+  f.onmouseleave=()=>paint(val);
+  const ta=$('textarea',f);ta.oninput=()=>$('#cnt').textContent=ta.value.length+' / 1000';
+  f.onsubmit=async e=>{e.preventDefault();const er=$('.err',f),b=$('button.btn',f);er.textContent='';
+    if(!val)return void(er.textContent='Поставьте оценку от 1 до 5');
+    b.disabled=true;
+    try{await api(`/catalog/${anc}/reviews`,{method:'POST',body:{rating:val,text:ta.value.trim()||null,booking_id:booking}});
+      toast('Спасибо! Отзыв опубликован');if(after==='open'){await open(anc)}else{dlg.close();render()}}
+    catch(x){er.textContent=x.message;b.disabled=false}};
+}
+
 /* ---------- public profile ---------- */
 async function profile(id){
   const [p,an,om]=await Promise.all([api(`/user/${id}/profile`),api(`/user/${id}/announcements`),api(`/user/${id}/operating_mode`)]);
@@ -204,11 +248,19 @@ async function account(tab='bookings'){
 async function bookings(el,path,title,asClient){
   const d=await api(path,{q:{limit:100}});
   const fmt={dateStyle:'medium',timeStyle:'short'};
+  const done=b=>['confirmed','completed'].includes(b.status)&&b.end_at&&new Date(b.end_at)<=new Date();
+  const mine={};
+  if(asClient){
+    const ids=[...new Set(d.bookings.filter(done).map(b=>b.announcement_id))];
+    await Promise.all(ids.map(async id=>{try{(await api(`/catalog/${id}/reviews`,{q:{limit:150}})).reviews.forEach(r=>{if(r.author_id===S.me.user.id)mine[r.booking_id]=r})}catch{}}));
+  }
   const row=b=>{
     const live=['pending','confirmed'].includes(b.status)&&b.start_at&&new Date(b.start_at)>new Date();
     const who=asClient?`<small>Мастер: <a data-l href="/user/${b.provider_id}">${esc(b.provider_username)}</a></small>`:`<small>Клиент: <a data-l href="/user/${b.client_id}">${esc(b.client_username)}</a></small>`;
     let act='';
     if(b.can_cancel)act=`<button class="btn sm bad" data-cancel="${b.id}" data-as="${asClient?'client':'provider'}">Отменить</button>`;
+    else if(asClient&&mine[b.id])act=`<span class="mine">Ваша оценка ${stars(mine[b.id].rating)}</span>`;
+    else if(asClient&&done(b))act=`<button class="btn sm sun" data-review="${b.id}" data-anc="${b.announcement_id}" data-name="${esc(b.announcement_name)}">Оставить отзыв</button>`;
     else if(live&&asClient)act=`<small>Отмена была возможна до ${D(new Date(new Date(b.start_at)-b.cancel_before_hours*36e5),fmt)}</small>`;
     return `<div class="row"><div><b>${esc(b.announcement_name)}</b><small>${b.start_at?D(b.start_at,{dateStyle:'long',timeStyle:'short'}):'Время не выбрано'}</small>${who}${b.can_cancel&&asClient?`<small>Бесплатная отмена до ${D(new Date(new Date(b.start_at)-b.cancel_before_hours*36e5),fmt)}</small>`:''}</div><div class="act"><b>${RUB(b.price)}</b> <span class="st ${esc(b.status)}">${ST[b.status]||esc(b.status)}</span>${act}</div></div>`;
   };

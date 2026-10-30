@@ -5,7 +5,6 @@ from enum import Enum
 from typing import Optional
 from pydantic import BaseModel, model_validator
 
-#TODO обьеденить эти схемы потом с my_anc
 
 class SortEnum(str, Enum):
     NEWEST = "newest"

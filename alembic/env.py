@@ -16,6 +16,7 @@ from core.database import Base
 from models.users import UserModel
 from models.configs import UserSettingsModel
 from models.availabilty import AvailabilityRuleModel
+from models.review import ReviewModel
 from settings import dbsettings
 
 config = context.config

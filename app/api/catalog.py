@@ -14,7 +14,6 @@ router = APIRouter(prefix='/BookLet', tags=[TAG_CATALOG])
 _UNAUTHORIZED = {401: {'description': 'Не авторизован'}}
 
 #TODO добавить в фильтры время на которое заказать хочешь и покажет активные
-# TODO добавить в фильтры мо
 @router.get(
     '/catalog',
     summary='Каталог объявлений',

@@ -1,7 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Literal
-#TODO добавить в таблицу пользователя конфигурации например как разрешить паказывать почту или нет
 
 class AccountData(BaseModel):
     id: int
