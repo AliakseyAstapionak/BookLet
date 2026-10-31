@@ -15,10 +15,10 @@ const plural=(n,a,b,c)=>{const m=n%100,k=n%10;return n+' '+(m>10&&m<20?c:k===1?a
 function toast(m,err){const t=document.createElement('div');t.className='toast'+(err?' err':'');t.textContent=m;$('#toasts').append(t);setTimeout(()=>t.remove(),4500)}
 
 const B='/BookLet';
-async function api(path,{method='GET',body,q}={}){
+async function api(path,{method='GET',body,q,form}={}){
   const qs=q?Object.entries(q).filter(([,v])=>v!==''&&v!=null):[];
   let r;
-  try{r=await fetch(B+path+(qs.length?'?'+new URLSearchParams(qs):''),{method,credentials:'same-origin',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined})}
+  try{r=await fetch(B+path+(qs.length?'?'+new URLSearchParams(qs):''),{method,credentials:'same-origin',headers:body?{'Content-Type':'application/json'}:{},body:form||(body?JSON.stringify(body):undefined)})}
   catch{throw new Error('Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.')}
   let d=null;try{d=await r.json()}catch{}
   if(!r.ok){
@@ -68,6 +68,7 @@ document.addEventListener('click',e=>{
   if(e.target.closest('[data-close]')||e.target===dlg)return dlg.close();
   const lk=e.target.closest('[data-like]');if(lk)return like(lk);
   const ar=e.target.closest('[data-arch]');if(ar)return archive(ar.dataset.arch);
+  const ph=e.target.closest('[data-photos]');if(ph)return photoManager(+ph.dataset.photos,ph.dataset.name);
   const cn=e.target.closest('[data-cancel]');if(cn)return cancelBooking(cn);
   const rv=e.target.closest('[data-review]');if(rv)return reviewForm({anc:+rv.dataset.anc,name:rv.dataset.name,booking:rv.dataset.review?+rv.dataset.review:null,after:rv.dataset.after});
   const c=e.target.closest('[data-open]');if(c)open(c.dataset.open);
@@ -115,16 +116,99 @@ async function reset(){
 
 /* ---------- catalog ---------- */
 const card=(a,o={})=>`<article class="card" tabindex="0" data-open="${a.id}">
+<div class="cov" data-cov="${a.id}" data-ph="${esc([...String(a.name).trim()][0]||'B')}"></div>
 <div class="top2"><span class="chip">${esc(a.type)}</span>${o.like===false?'':`<button class="like${S.likes.has(a.id)?' on':''}" data-like="${a.id}" aria-label="В избранное">${HEART}</button>`}</div>
 <h3>${esc(a.name)}</h3>${o.by===false?'':`<p class="by">Мастер: <a data-l href="/user/${a.user_id}">${esc(S.names[a.user_id])}</a></p>`}
 <div class="bar"><i style="width:${Math.max(18,Math.min(100,a.duration_minutes/2.4))}%"></i><span>${dur(a.duration_minutes)}</span></div>
 <div class="foot"><b>${RUB(a.price)}</b>${o.extra?o.extra(a):''}</div></article>`;
+
+/* ---------- photos ---------- */
+const MAXP=5,MAXB=4194304,OKT=['image/jpeg','image/png','image/webp'],PH=new Map();
+const photos=id=>PH.get(id)||(PH.set(id,api(`/catalog/${id}/photos`).then(d=>d.photos,()=>[])),PH.get(id));
+const io='IntersectionObserver'in window?new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){io.unobserve(e.target);fillCover(e.target)}}),{rootMargin:'250px'}):null;
+async function fillCover(el){
+  const l=await photos(+el.dataset.cov);el.dataset.done=1;if(!l.length)return;
+  const im=new Image();im.alt='';im.src=l[0].url;im.onerror=()=>im.remove();el.prepend(im);
+  if(l.length>1)el.insertAdjacentHTML('beforeend',`<span class="cnt">${l.length} фото</span>`);
+}
+const covers=(r=document)=>$$('[data-cov]:not([data-obs])',r).forEach(el=>{el.dataset.obs=1;io?io.observe(el):fillCover(el)});
+function refreshCover(id){PH.delete(id);$$(`[data-cov="${id}"]`).forEach(el=>{$$('img,.cnt',el).forEach(x=>x.remove());delete el.dataset.obs;delete el.dataset.done});covers()}
+function lightbox(urls,i){
+  let d=$('#lb');if(!d){d=document.createElement('dialog');d.id='lb';d.tabIndex=-1;document.body.append(d);d.onclick=e=>{if(e.target===d||e.target.closest('[data-lbx]'))d.close()}}
+  const n=urls.length,step=k=>{i=(i+k+n)%n;draw()};
+  const draw=()=>{d.innerHTML=`<img src="${esc(urls[i])}" alt="Фото ${i+1} из ${n}"><button class="x" data-lbx aria-label="Закрыть">×</button>${n>1?`<button class="gnav prev" data-k="-1" aria-label="Предыдущее фото">‹</button><button class="gnav next" data-k="1" aria-label="Следующее фото">›</button><span class="cnt">${i+1} / ${n}</span>`:''}`;
+    $$('[data-k]',d).forEach(b=>b.onclick=e=>{e.stopPropagation();step(+b.dataset.k)});d.focus()};
+  d.onkeydown=e=>{if(n>1&&(e.key==='ArrowLeft'||e.key==='ArrowRight'))step(e.key==='ArrowLeft'?-1:1)};
+  let x0=null;d.onpointerdown=e=>x0=e.clientX;d.onpointerup=e=>{if(x0!=null&&n>1&&Math.abs(e.clientX-x0)>50)step(e.clientX<x0?1:-1);x0=null};
+  draw();d.showModal();
+}
+const gallery=(l,name)=>!l.length?'':`<div class="gal"><div class="gst"><button class="gmain" aria-label="Открыть фото на весь экран"><img src="${esc(l[0].url)}" alt="${esc(name)}"></button>${l.length>1?`<button class="gnav prev" data-g="-1" aria-label="Предыдущее фото">‹</button><button class="gnav next" data-g="1" aria-label="Следующее фото">›</button><span class="cnt">1 / ${l.length}</span>`:''}</div>${l.length>1?`<div class="thumbs">${l.map((p,i)=>`<button data-t="${i}" aria-label="Фото ${i+1}" aria-pressed="${i===0}"><img src="${esc(p.url)}" alt=""></button>`).join('')}</div>`:''}</div>`;
+function wireGallery(root,l){
+  const g=$('.gal',root);if(!g)return;let i=0;const n=l.length,main=$('.gmain img',g);
+  const set=k=>{i=(k+n)%n;main.src=l[i].url;$('.cnt',g)&&($('.cnt',g).textContent=`${i+1} / ${n}`);$$('[data-t]',g).forEach(b=>b.setAttribute('aria-pressed',+b.dataset.t===i))};
+  $('.gmain',g).onclick=()=>lightbox(l.map(p=>p.url),i);
+  $$('[data-g]',g).forEach(b=>b.onclick=()=>set(i+ +b.dataset.g));$$('[data-t]',g).forEach(b=>b.onclick=()=>set(+b.dataset.t));
+  g.onkeydown=e=>{if(n>1&&(e.key==='ArrowLeft'||e.key==='ArrowRight'))set(i+(e.key==='ArrowLeft'?-1:1))};
+  let x0=null;const m=$('.gmain',g);m.onpointerdown=e=>x0=e.clientX;m.onpointerup=e=>{if(x0!=null&&n>1&&Math.abs(e.clientX-x0)>50){set(i+(e.clientX<x0?1:-1));m.dataset.sw=1}x0=null};
+  m.addEventListener('click',e=>{if(m.dataset.sw){e.stopImmediatePropagation();delete m.dataset.sw}},true);
+}
+async function shrink(f){
+  if(f.size<1.2e6)return f;
+  try{const bm=await createImageBitmap(f,{imageOrientation:'from-image'}),k=Math.min(1,1920/Math.max(bm.width,bm.height)),c=document.createElement('canvas');
+    c.width=Math.round(bm.width*k);c.height=Math.round(bm.height*k);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(bm,0,0,c.width,c.height);
+    const b=await new Promise(r=>c.toBlob(r,'image/jpeg',.86));return b&&b.size<f.size?new File([b],f.name.replace(/\.\w+$/,'')+'.jpg',{type:'image/jpeg'}):f}
+  catch{return f}
+}
+async function photoManager(id,name,fresh){
+  modal('<p class="muted">Загрузка…</p>');if(!dlg.open)dlg.showModal();
+  let list;try{list=(await api(`/catalog/${id}/photos`)).photos}catch(e){return modal(`<h2>Фото недоступны</h2><p>${esc(e.message)}</p>`)}
+  let pend=[],cur=null,up=false,changed=false;
+  dlg.addEventListener('close',()=>{pend.forEach(p=>URL.revokeObjectURL(p.url));if(changed)refreshCover(id)},{once:true});
+  modal(`<h2>Фото услуги</h2><p class="by">${esc(name)}</p>${fresh?'<p class="hint">Услуга опубликована. Добавьте фото, чтобы её было проще выбрать.</p>':''}<div class="pm" id="pm"></div><p class="hint" id="pmh"></p><div class="acts" id="pma"><button class="btn sun" id="pmu"></button><button class="btn ghost" id="pmc">Сбросить выбор</button></div>`);
+  const pm=$('#pm'),left=()=>MAXP-list.length-pend.length;
+  const draw=()=>{
+    pm.innerHTML=list.map((p,i)=>`<div class="pt"><img src="${esc(p.url)}" alt="Фото ${i+1}">${i?'':'<span class="cv">Обложка</span>'}<button class="rm" data-rm="${p.id}" aria-label="Удалить фото ${i+1}" ${up?'disabled':''}>×</button></div>`).join('')
+      +pend.map((p,i)=>`<div class="pt${p===cur?' busy':''}"><img src="${p.url}" alt="Выбрано ${i+1}"><span class="cv">Не сохранено</span>${up?'':`<button class="rm" data-un="${i}" aria-label="Убрать из выбора">×</button>`}</div>`).join('')
+      +(left()>0&&!up?'<label class="pt add"><b>+</b>Выбрать<input type="file" accept="image/jpeg,image/png,image/webp" multiple aria-label="Выбрать фото"></label>':'');
+    $('#pmh').textContent=pend.length?`Выбрано ${pend.length}. Фото появятся в услуге только после кнопки «Загрузить».`:`${list.length} из ${MAXP} · JPEG, PNG или WEBP, до 4 МБ. Первое фото — обложка карточки.`;
+    const u=$('#pmu');u.disabled=!pend.length||up;u.textContent=up?'Загружаем…':pend.length?`Загрузить ${pend.length}`:'Загрузить';
+    $('#pmc').hidden=!pend.length||up;
+    const inp=$('input',pm);if(inp)inp.onchange=()=>{pick(inp.files);inp.value=''};
+    $$('[data-un]',pm).forEach(b=>b.onclick=()=>{URL.revokeObjectURL(pend[+b.dataset.un].url);pend.splice(+b.dataset.un,1);draw()});
+    $$('[data-rm]',pm).forEach(b=>b.onclick=async()=>{if(up||!confirm('Удалить это фото?'))return;b.disabled=true;
+      try{await api(`/me/my_announcements/${id}/photos/${b.dataset.rm}`,{method:'DELETE'});list=list.filter(p=>p.id!==+b.dataset.rm);changed=true;toast('Фото удалено')}catch(e){toast(e.message,1)}draw()});
+  };
+  function pick(files){
+    if(up)return;
+    const ok=[...files].filter(f=>OKT.includes(f.type)||(toast(`${f.name}: нужен JPEG, PNG или WEBP`,1),0)),room=Math.max(0,left());
+    if(ok.length>room)toast(`Можно выбрать ещё ${room}, остальные пропущены`,1);
+    ok.slice(0,room).forEach(f=>pend.push({file:f,url:URL.createObjectURL(f)}));draw();
+  }
+  async function send(){
+    if(!pend.length||up)return;up=true;let done=0;
+    for(const p of [...pend]){
+      cur=p;draw();
+      try{const b=await shrink(p.file);if(b.size>MAXB)throw new Error('файл больше 4 МБ');
+        const fd=new FormData();fd.append('file',b,b.name);
+        list.push((await api(`/me/my_announcements/${id}/photos`,{method:'POST',form:fd})).photo);
+        URL.revokeObjectURL(p.url);pend.splice(pend.indexOf(p),1);changed=true;done++}
+      catch(e){toast(`${p.file.name}: ${e.message}`,1)}
+    }
+    cur=null;up=false;draw();
+    if(done)toast(pend.length?`Загружено: ${done}. Остальные не прошли, их можно повторить`:done>1?'Фото загружены':'Фото загружено');
+  }
+  $('#pmu').onclick=send;
+  $('#pmc').onclick=()=>{pend.forEach(p=>URL.revokeObjectURL(p.url));pend=[];draw()};
+  pm.ondragover=e=>{e.preventDefault();pm.classList.add('over')};pm.ondragleave=()=>pm.classList.remove('over');
+  pm.ondrop=e=>{e.preventDefault();pm.classList.remove('over');pick(e.dataTransfer.files)};
+  draw();
+}
 async function grid(el,more,get,o={}){
   const L=12;let off=0;
   const run=async()=>{
     const items=await get(off,L);items.forEach(a=>{if(a.provider_username)S.names[a.user_id]=a.provider_username});await names(items.map(a=>a.user_id));
     el.insertAdjacentHTML('beforeend',items.map(a=>card(a,o)).join('')+'');
-    off+=items.length;more.hidden=items.length<L;
+    off+=items.length;more.hidden=items.length<L;covers(el);
     if(!off)el.innerHTML=E(o.empty||'Ничего не нашлось',o.hint||'Попробуйте другой запрос или уберите фильтры.');
   };
   el.innerHTML='';more.onclick=()=>run().catch(e=>toast(e.message,1));
@@ -150,10 +234,10 @@ const modal=h=>{dlg.innerHTML=`<div class="dl">${h}<button class="x" data-close 
 async function open(id){
   modal('<p class="muted">Загрузка…</p>');if(!dlg.open)dlg.showModal();
   try{
-    const {announcement:a}=await api('/catalog/'+id);if(a.provider_username)S.names[a.user_id]=a.provider_username;await names([a.user_id]);
-    modal(`<h2>${esc(a.name)}</h2><div class="meta"><span class="chip">${esc(a.type)}</span><span class="chip">${dur(a.duration_minutes)}</span><span class="chip">Отмена за ${a.cancel_before_hours} ч до начала</span></div>
+    const [{announcement:a},pl]=await Promise.all([api('/catalog/'+id),photos(id)]);if(a.provider_username)S.names[a.user_id]=a.provider_username;await names([a.user_id]);
+    modal(`${gallery(pl,a.name)}<h2>${esc(a.name)}</h2><div class="meta"><span class="chip">${esc(a.type)}</span><span class="chip">${dur(a.duration_minutes)}</span><span class="chip">Отмена за ${a.cancel_before_hours} ч до начала</span></div>
 <p class="by">Мастер: <a data-l href="/user/${a.user_id}">${esc(S.names[a.user_id])}</a></p>${a.description?`<p class="desc">${esc(a.description)}</p>`:''}<div class="foot"><b>${RUB(a.price)}</b></div><div id="bk"></div><section class="revs" id="rv" aria-labelledby="rvh"></section>`);
-    await Promise.all([booking(a,$('#bk')),reviews(a,$('#rv'))]);
+    wireGallery(dlg,pl);await Promise.all([booking(a,$('#bk')),reviews(a,$('#rv'))]);
   }catch(e){modal(`<h2>Не удалось открыть услугу</h2><p>${esc(e.message)}</p>`)}
 }
 function slotList(d){
@@ -284,12 +368,12 @@ async function announcements(el){
     $$('[data-s]',el).forEach(b=>b.onclick=()=>{st=b.dataset.s;draw()});
     $('#nw').onclick=create;
     grid($('#gl'),$('#mr'),async(offset,limit)=>(await api(`/me/my_announcements/${st}`,{q:{limit,offset}})).announcements,
-      {by:false,like:false,empty:st==='active'?'Активных услуг нет':'Архив пуст',hint:st==='active'?'Нажмите «Новая услуга», чтобы опубликовать первую.':'',extra:a=>st==='active'?`<button class="btn sm bad" data-arch="${a.id}">В архив</button>`:''});
+      {by:false,like:false,empty:st==='active'?'Активных услуг нет':'Архив пуст',hint:st==='active'?'Нажмите «Новая услуга», чтобы опубликовать первую.':'',extra:a=>st==='active'?`<span class="acts"><button class="btn sm ghost" data-photos="${a.id}" data-name="${esc(a.name)}">Фото</button><button class="btn sm bad" data-arch="${a.id}">В архив</button></span>`:''});
   };
   const create=()=>{
     modal('<h2>Новая услуга</h2>'+F('cf',[['name','Название','text','minlength="3" maxlength="100"'],['type','Тип услуги','text','maxlength="100" placeholder="Например, маникюр"'],['price','Цена, ₽','number','min="0" value="1000"'],['duration_minutes','Длительность, мин','number','min="1" value="60"'],['cancel_before_hours','Отмена не позднее чем за, ч','number','min="1" value="24"']],'Опубликовать').replace('<p class="err"','<label>Описание<textarea name="description" rows="3" maxlength="1000"></textarea></label><p class="err"'));
     dlg.showModal();
-    submit('cf',async d=>{await api('/me/my_announcements/create',{method:'POST',body:{...d,status:'active',price:+d.price,duration_minutes:+d.duration_minutes,cancel_before_hours:+d.cancel_before_hours}});dlg.close();toast('Опубликовано');st='active';draw()});
+    submit('cf',async d=>{const r=await api('/me/my_announcements/create',{method:'POST',body:{...d,status:'active',price:+d.price,duration_minutes:+d.duration_minutes,cancel_before_hours:+d.cancel_before_hours}});dlg.close();toast('Опубликовано');st='active';draw();if(r.new_announcement&&r.new_announcement.id)photoManager(r.new_announcement.id,d.name,true)});
   };
   announcements.redraw=draw;draw();
 }

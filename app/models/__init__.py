@@ -6,3 +6,4 @@ from .tables import user_liked_announcements
 from .configs import UserSettingsModel
 from .availabilty import AvailabilityRuleModel
 from .review import ReviewModel
+from .announcement_photo import AnnouncementPhotoModel

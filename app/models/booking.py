@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
-
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, func
+from sqlalchemy.dialects.postgresql import ExcludeConstraint
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core import Base
@@ -31,4 +31,13 @@ class BookingModel(Base):
    
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    __table_args__ = (CheckConstraint('end_at > start_at', name='ck_booking_time_order'),)
+    __table_args__ = (
+        CheckConstraint('end_at > start_at', name='ck_booking_time_order'),
+        ExcludeConstraint(
+            ('provider_id', '='),
+            (text("tstzrange(start_at, end_at, '[)')"), '&&'),
+            where=text("status IN ('PENDING', 'CONFIRMED')"),
+            name='ex_provider_no_overlap',
+            using='gist',
+        ),
+    )

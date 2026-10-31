@@ -107,8 +107,10 @@ class AnnouncementService:
         return [_with_provider(a, username) for a, username in rows]
 
     @staticmethod
-    async def get_my_announcement(user_id: int, anc_id: int, status: StatusEnum, db: AsyncSession):
-        query = select(AnnouncementModel).where(AnnouncementModel.id == anc_id, AnnouncementModel.user_id == user_id, AnnouncementModel.status == status)
+    async def get_my_announcement(user_id: int, anc_id: int, db: AsyncSession, status: StatusEnum | None = None):
+        query = select(AnnouncementModel).where(AnnouncementModel.id == anc_id, AnnouncementModel.user_id == user_id)
+        if status:
+            query = query.where(AnnouncementModel.status == status)
         return (await db.execute(query)).scalar()
 
     @staticmethod

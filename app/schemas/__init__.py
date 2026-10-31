@@ -9,3 +9,4 @@ from .users import MyAccountDataResponseSchema, AccountDataResponseSchema
 from .availability import CreateAvailabilityRuleSchema, AvailabilityResponseSchema, AvailabilityRuleResponseSchema
 from .calendar import CalendarResponseSchema
 from .reviews import CreateReviewSchema, ReviewOut, ReviewResponseSchema, ReviewsResponseSchema
+from .photo import PhotoOut, PhotosResponseSchema

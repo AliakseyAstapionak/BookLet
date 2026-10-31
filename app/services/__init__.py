@@ -7,3 +7,4 @@ from .availability import AvailabilityRuleService
 from .slots import SlotService
 from .calendar import CalendarService
 from .reviews import ReviewService
+from .photo import PhotoService

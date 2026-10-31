@@ -6,9 +6,9 @@ class CreateAnnouncementSchema(BaseModel):
     status: Literal['active']
     type: str = Field(max_length=100, detail='Тип услуги')
     description: str | None = Field(max_length=1000, detail='Описание услуги')
-    price: int = Field(ge=0)
-    duration_minutes: int = Field(ge=1, default=60)
-    cancel_before_hours: int = Field(ge=1, default=24)
+    price: int = Field(ge=0, le = 100_000_000)
+    duration_minutes: int = Field(ge=1, le = 24*60*7, default=60)
+    cancel_before_hours: int = Field(ge=12, le = 120, default=24)
     
 
     @field_validator('description')

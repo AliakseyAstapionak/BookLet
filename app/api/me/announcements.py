@@ -1,19 +1,23 @@
 from typing import Annotated, Optional
-
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from models import BookingStatus
 from schemas import (CreateAnnouncementSchema, AnnouncementsResponseSchema,
-                     AnnouncementResponseSchema, MyAnnouncementFiltersSchema, BookingsResponseSchema)
-from services import AnnouncementService, BookingService
+                     AnnouncementResponseSchema, MyAnnouncementFiltersSchema, 
+                     BookingsResponseSchema, PhotosResponseSchema)
+from services import AnnouncementService, BookingService, PhotoService
 from core import get_db
 from utils import get_current_user
 from ..tags import TAG_MY_ANNOUNCEMENTS
+from fastapi import UploadFile, File
+from sqlalchemy.ext.asyncio import AsyncSession
+from core.paths import UPLOAD_DIR
 
 router = APIRouter(prefix='/BookLet/me/my_announcements', tags=[TAG_MY_ANNOUNCEMENTS])
 
 _NOT_FOUND = {404: {'description': 'Объявление не найдено'}}
 _UNAUTHORIZED = {401: {'description': 'Не авторизован'}}
+MAX_BYTES=4_194_304
 
 
 @router.post(
@@ -27,6 +31,80 @@ async def create_announcement(anc: CreateAnnouncementSchema, db=Depends(get_db),
                                                                     price=anc.price, description=anc.description,
                                                                     duration_minutes=anc.duration_minutes, cancel_before_hours=anc.cancel_before_hours, db=db)
     return {'success': True, 'new_announcement': new_announcement}
+
+@router.get(
+    '/{anc_id}:int',
+    response_model=AnnouncementResponseSchema,
+    summary='Моё активное объявление по id',
+    responses={**_UNAUTHORIZED, **_NOT_FOUND}
+    )
+async def get_my_announcement(anc_id: int, db=Depends(get_db), current_user=Depends(get_current_user)):
+    user_id = current_user['uid']
+    announcement = await AnnouncementService.get_my_announcement(user_id=user_id, anc_id=anc_id, db=db)
+    if not announcement:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Объявление не найдено')
+    return {'announcement': announcement}
+
+@router.get(
+    '/catalog/{anc_id}/photos',
+    response_model=PhotosResponseSchema,
+    summary='Фото объявления',
+    description='Публичный список фото объявления в порядке загрузки. Для архивных объявлений недоступно.',
+    responses={400: {'description': 'Объявление недоступно'},
+               404: {'description': 'Объявление не найдено'}},
+)
+async def announcement_photos(anc_id: int, db: AsyncSession = Depends(get_db)):
+    await AnnouncementService.get_announcement(id=anc_id, db=db)
+    photos = await PhotoService.get_announcement_photos(anc_id=anc_id, db=db)
+    return {'photos': [{'id': p.id, 'url': f'/uploads/{p.filename}'} for p in photos]}
+
+
+@router.post(
+    '/{anc_id}/photos',
+    status_code=status.HTTP_201_CREATED,
+    summary='Добавить фото к объявлению',
+    description='Только владелец объявления. Форматы: JPEG, PNG, WEBP. До 5 МБ, не больше 5 фото на объявление.',
+    responses={**_UNAUTHORIZED,
+               400: {'description': 'Файл не является изображением JPEG/PNG/WEBP'},
+               404: {'description': 'Объявление не найдено'},
+               409: {'description': 'Достигнут лимит фото'},
+               413: {'description': 'Файл слишком большой'}},
+)
+async def add_announcement_photo(
+        anc_id: int,
+        file: UploadFile = File(...),
+        db: AsyncSession = Depends(get_db),
+        current_user=Depends(get_current_user)):
+    owner = await AnnouncementService.get_announcement_user(id=anc_id, db=db)
+    if owner is None or owner != current_user['uid']:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Объявление не найдено')
+
+    data = await file.read(MAX_BYTES + 1)
+    if len(data) > MAX_BYTES:
+        raise HTTPException(413, detail='Файл больше 5 МБ')
+
+    photo = await PhotoService.add_announcement_photo(anc_id=anc_id, data=data, db=db)
+    return {'success': True, 'photo': {'id': photo.id, 'url': f'/uploads/{photo.filename}'}}
+
+@router.delete(
+    '/{anc_id}/photos/{photo_id}',
+    summary='Удалить фото объявления',
+    description='Только владелец объявления.',
+    responses={**_UNAUTHORIZED,
+               404: {'description': 'Объявление или фото не найдены'}},
+)
+async def delete_announcement_photo(
+        anc_id: int,
+        photo_id: int,
+        db: AsyncSession = Depends(get_db),
+        current_user=Depends(get_current_user)):
+    owner = await AnnouncementService.get_announcement_user(id=anc_id, db=db)
+    if owner is None or owner != current_user['uid']:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Объявление не найдено')
+
+    await PhotoService.delete_announcement_photo(anc_id=anc_id, photo_id=photo_id, db=db)
+    return {'success': True, 'msg': 'Фото удалено'}
+
 
 @router.get(
     '/active',

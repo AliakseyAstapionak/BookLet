@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, update
 from sqlalchemy.orm import aliased
+from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException, status
 from models import UserModel, BookingModel, AnnouncementModel, BookingStatus, StatusEnum, NotificationModel
 from services.announcements import AnnouncementService
@@ -46,7 +47,14 @@ class BookingService:
             cancel_before_hours=announcement.cancel_before_hours,
         )
         db.add(booking)
-        await db.flush()  
+        try:
+            await db.flush()
+        except IntegrityError as e:
+            await db.rollback()
+            if 'ex_provider_no_overlap' in str(e.orig):
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                                    detail='Это время недоступно для записи')
+            raise  
 
         await NotificationService.send_book_message(to_user_id=provider_id, sender_id=client_id, title='Новая бронь',
             msg_text=f'Пользователь {client_name} забронировал «{announcement.name}» '

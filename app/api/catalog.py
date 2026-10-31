@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 from core import get_db
-from services import AnnouncementService, UserService, BookingService, SlotService
+from services import AnnouncementService, UserService, BookingService, SlotService, PhotoService
 from utils import get_current_user
-from schemas import AnnouncementFiltersSchema
+from schemas import AnnouncementFiltersSchema, PhotosResponseSchema
 from .tags import TAG_CATALOG
 
 router = APIRouter(prefix='/BookLet', tags=[TAG_CATALOG])
@@ -34,6 +34,19 @@ async def catalog(filters: Annotated[AnnouncementFiltersSchema, Query()], db=Dep
 async def announcement(anc_id: int, db=Depends(get_db)):
     result = await AnnouncementService.get_announcement(id=anc_id, db=db)
     return {'success': True, 'announcement': result}
+
+@router.get(
+    '/catalog/{anc_id}/photos',
+    response_model=PhotosResponseSchema,
+    summary='Фото объявления',
+    description='Публичный список фото объявления в порядке загрузки. Для архивных объявлений недоступно.',
+    responses={400: {'description': 'Объявление недоступно'},
+               404: {'description': 'Объявление не найдено'}},
+)
+async def announcement_photos(anc_id: int, db: AsyncSession = Depends(get_db)):
+    await AnnouncementService.get_announcement(id=anc_id, db=db)
+    photos = await PhotoService.get_announcement_photos(anc_id=anc_id, db=db)
+    return {'photos': [{'id': p.id, 'url': f'/uploads/{p.filename}'} for p in photos]}
 
 @router.post(
     '/catalog/{anc_id}/like',
