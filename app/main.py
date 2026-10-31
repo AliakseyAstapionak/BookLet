@@ -17,7 +17,7 @@ class UploadFiles(StaticFiles):
             resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
             resp.headers['X-Content-Type-Options'] = 'nosniff'
         return resp
-
+#TODO добавить изменение обьявления
 #TODO подумать как обощить rpslimeter чтобы не переписывать его на каждую функцию
 #TODO подумать как лучше реализовать наказание за неприход или что то такое 
 @asynccontextmanager
