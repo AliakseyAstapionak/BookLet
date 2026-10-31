@@ -59,7 +59,7 @@ async function render(){
 }
 function nav(){
   const L=(h,t,c='')=>`<a data-l ${c?`class="${c}"`:''} href="${h}"${location.pathname===h?' aria-current="page"':''}>${t}</a>`;
-  $('#nav').innerHTML=L('/','Каталог')+(S.me?L('/me/bookings','Мои записи')+L('/me/notifications','Уведомления'+badge())+L('/me/announcements',esc(S.me.user.username),'btn sm'):L('/login','Войти')+L('/register','Регистрация','btn sm'));
+  $('#nav').innerHTML=L('/','Каталог')+(S.me?L('/me/announcements','Мои услуги')+L('/me/requests','Записи клиентов')+L('/me/bookings','Мои записи')+L('/me/notifications','Уведомления'+badge())+L('/me/settings',esc(S.me.user.username),'btn sm'):L('/login','Войти')+L('/register','Регистрация','btn sm'));
 }
 addEventListener('popstate',render);
 document.addEventListener('click',e=>{
@@ -321,12 +321,12 @@ async function profile(id){
 }
 
 /* ---------- account ---------- */
-const TABS=[['bookings','Мои записи'],['requests','Записи ко мне'],['calendar','Календарь'],['announcements','Мои услуги'],['favourites','Избранное'],['notifications','Уведомления'],['schedule','Режим работы'],['settings','Настройки']];
+const GROUPS=[['Я записываюсь',[['bookings','Мои записи'],['favourites','Избранное']]],['Я мастер',[['announcements','Мои услуги'],['requests','Записи клиентов'],['calendar','Календарь'],['schedule','Режим работы']]],['Аккаунт',[['notifications','Уведомления'],['settings','Настройки']]]];
 async function account(tab='bookings'){
   if(!S.me)return go('/login',1);
-  const T={bookings:el=>bookings(el,'/me/my_bookings','Мои записи',1),requests:el=>bookings(el,'/me/my_announcements/booked','Записи ко мне',0),calendar,announcements,favourites,notifications,schedule,settings}[tab];
+  const T={bookings:el=>bookings(el,'/me/my_bookings','Мои записи',1),requests:el=>bookings(el,'/me/my_announcements/booked','Записи клиентов',0),calendar,announcements,favourites,notifications,schedule,settings}[tab];
   if(!T)return go('/me/bookings',1);
-  app.innerHTML=`<div class="layout"><aside class="side" aria-label="Личный кабинет">${TABS.map(([k,n])=>`<a data-l href="/me/${k}"${k===tab?' aria-current="page"':''}>${n}${k==='notifications'?badge():''}</a>`).join('')}</aside><section id="pane"></section></div>`;
+  app.innerHTML=`<div class="layout"><aside class="side" aria-label="Личный кабинет">${GROUPS.map(([g,t])=>`<span class="sg">${g}</span>`+t.map(([k,n])=>`<a data-l href="/me/${k}"${k===tab?' aria-current="page"':''}>${n}${k==='notifications'?badge():''}</a>`).join('')).join('')}</aside><section id="pane"></section></div>`;
   await T($('#pane'));
 }
 async function bookings(el,path,title,asClient){
